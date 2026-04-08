@@ -39,7 +39,7 @@ const STRUCTURES: Structure[] = [
 
 export default function NexusScene() {
   const { setScene, addChronicleEvent, setObjective } = useGameState()
-  const stars = useMemo(() => generateStars(80), [])
+  const stars = useMemo(() => generateStars(100), [])
   const [tooltip, setTooltip] = useState<string | null>(null)
 
   function handleArmClick() {
@@ -52,8 +52,9 @@ export default function NexusScene() {
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: 'radial-gradient(ellipse at center, #0d0d1a 0%, #0a0a0f 70%)',
+      background: 'radial-gradient(ellipse at 50% 60%, #0d1020 0%, #080810 55%, #050508 100%)',
       overflow: 'hidden',
+      animation: 'scene-fade-in 0.6s ease forwards',
     }}>
       {/* Stars */}
       {stars.map((s) => (
@@ -67,11 +68,24 @@ export default function NexusScene() {
             height: `${s.size}px`,
             borderRadius: '50%',
             background: '#fff',
-            opacity: 0.7,
+            opacity: 0.6,
             animation: `twinkle ${s.duration}s ${s.delay}s ease-in-out infinite`,
           }}
         />
       ))}
+
+      {/* Subtle radial ring at center */}
+      <div style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: '600px',
+        height: '600px',
+        borderRadius: '50%',
+        background: 'radial-gradient(ellipse at center, rgba(0,245,212,0.04) 0%, transparent 70%)',
+        pointerEvents: 'none',
+      }} />
 
       {/* Center title */}
       <div style={{
@@ -82,24 +96,35 @@ export default function NexusScene() {
         textAlign: 'center',
         zIndex: 10,
         pointerEvents: 'none',
+        animation: 'slide-up-fade 0.8s 0.2s ease both',
       }}>
         <div style={{
-          fontSize: '28px',
+          fontSize: 'clamp(20px, 3vw, 32px)',
           fontWeight: 'bold',
-          letterSpacing: '6px',
+          letterSpacing: '8px',
           color: 'var(--teal)',
-          textShadow: 'var(--glow-teal)',
-          marginBottom: '8px',
+          textShadow: '0 0 30px rgba(0,245,212,0.6), var(--glow-teal)',
+          marginBottom: '10px',
+          textTransform: 'uppercase',
         }}>
-          SINGULARITY FORGE
+          Singularity Forge
         </div>
         <div style={{
-          fontSize: '11px',
-          letterSpacing: '4px',
-          color: 'rgba(0,245,212,0.45)',
+          fontSize: '10px',
+          letterSpacing: '5px',
+          color: 'rgba(0,245,212,0.4)',
           animation: 'pulse-glow 3s ease-in-out infinite',
+          textTransform: 'uppercase',
         }}>
-          SELECT YOUR PATH
+          Select Your Path
+        </div>
+        <div style={{
+          marginTop: '16px',
+          fontSize: '9px',
+          letterSpacing: '2px',
+          color: 'rgba(0,245,212,0.2)',
+        }}>
+          — Phase I: The Arm —
         </div>
       </div>
 
@@ -126,28 +151,30 @@ export default function NexusScene() {
               onMouseLeave={() => setTooltip(null)}
               style={{
                 transform: 'translate(-50%, -50%)',
-                cursor: s.active ? 'pointer' : 'not-allowed',
+                cursor: s.active ? 'pointer' : 'default',
                 textAlign: 'center',
                 userSelect: 'none',
               }}
             >
               <div style={{
-                width: s.active ? '48px' : '36px',
-                height: s.active ? '48px' : '36px',
+                width: s.active ? '52px' : '38px',
+                height: s.active ? '52px' : '38px',
                 borderRadius: '50%',
-                border: `2px solid ${s.active ? 'var(--teal)' : 'rgba(100,100,100,0.4)'}`,
-                background: s.active ? 'rgba(0,245,212,0.1)' : 'rgba(60,60,80,0.2)',
-                boxShadow: s.active ? 'var(--glow-teal)' : 'none',
-                animation: s.active ? 'pulse-glow 2s ease-in-out infinite' : 'none',
-                margin: '0 auto 6px',
+                border: `2px solid ${s.active ? 'var(--teal)' : 'rgba(80,80,100,0.35)'}`,
+                background: s.active ? 'rgba(0,245,212,0.08)' : 'rgba(40,40,60,0.15)',
+                boxShadow: s.active ? '0 0 20px rgba(0,245,212,0.35), inset 0 0 12px rgba(0,245,212,0.1)' : 'none',
+                animation: s.active ? 'node-pulse 2.5s ease-in-out infinite' : 'none',
+                '--pulse-color': 'var(--teal)',
+                margin: '0 auto 8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-              }}>
+                transition: 'all 0.2s ease',
+              } as React.CSSProperties}>
                 {s.active && (
                   <div style={{
-                    width: '12px',
-                    height: '12px',
+                    width: '14px',
+                    height: '14px',
                     borderRadius: '50%',
                     background: 'var(--teal)',
                     boxShadow: 'var(--glow-teal)',
@@ -157,12 +184,23 @@ export default function NexusScene() {
               <div style={{
                 fontSize: '9px',
                 letterSpacing: '2px',
-                color: s.active ? 'var(--teal)' : 'rgba(100,100,100,0.5)',
+                color: s.active ? 'var(--teal)' : 'rgba(80,80,100,0.45)',
                 textShadow: s.active ? 'var(--glow-teal)' : 'none',
                 whiteSpace: 'nowrap',
               }}>
                 {s.label}
               </div>
+              {!s.active && (
+                <div style={{
+                  fontSize: '8px',
+                  color: 'rgba(255,183,0,0.5)',
+                  letterSpacing: '1px',
+                  marginTop: '3px',
+                  whiteSpace: 'nowrap',
+                }}>
+                  Coming Soon
+                </div>
+              )}
               {tooltip === s.id && (
                 <div style={{
                   position: 'absolute',
@@ -172,14 +210,15 @@ export default function NexusScene() {
                   background: 'var(--panel-bg)',
                   border: '1px solid rgba(0,245,212,0.2)',
                   borderRadius: '4px',
-                  padding: '4px 8px',
+                  padding: '5px 10px',
                   fontSize: '9px',
                   color: 'var(--amber)',
                   letterSpacing: '1px',
                   whiteSpace: 'nowrap',
                   zIndex: 20,
+                  backdropFilter: 'blur(4px)',
                 }}>
-                  Coming Soon
+                  Not yet available
                 </div>
               )}
             </div>
