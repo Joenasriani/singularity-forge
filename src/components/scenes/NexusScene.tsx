@@ -24,6 +24,7 @@ function generateStars(count: number): Star[] {
 interface Structure {
   id: string
   label: string
+  sublabel: string
   active: boolean
   orbitRadius: number
   orbitDuration: number
@@ -31,10 +32,10 @@ interface Structure {
 }
 
 const STRUCTURES: Structure[] = [
-  { id: 'arm',   label: 'THE ARM',   active: true,  orbitRadius: 180, orbitDuration: 20, orbitDelay: 0   },
-  { id: 'eye',   label: 'THE EYE',   active: false, orbitRadius: 240, orbitDuration: 28, orbitDelay: -7  },
-  { id: 'swarm', label: 'THE SWARM', active: false, orbitRadius: 300, orbitDuration: 35, orbitDelay: -14 },
-  { id: 'mind',  label: 'THE MIND',  active: false, orbitRadius: 150, orbitDuration: 16, orbitDelay: -5  },
+  { id: 'arm',   label: 'THE ARM',   sublabel: 'Manipulation & Control',  active: true,  orbitRadius: 180, orbitDuration: 20, orbitDelay: 0   },
+  { id: 'eye',   label: 'THE EYE',   sublabel: 'Perception & Sensing',    active: false, orbitRadius: 240, orbitDuration: 28, orbitDelay: -7  },
+  { id: 'swarm', label: 'THE SWARM', sublabel: 'Distributed Systems',     active: false, orbitRadius: 300, orbitDuration: 35, orbitDelay: -14 },
+  { id: 'mind',  label: 'THE MIND',  sublabel: 'Cognition & Planning',    active: false, orbitRadius: 150, orbitDuration: 16, orbitDelay: -5  },
 ]
 
 export default function NexusScene() {
@@ -70,6 +71,24 @@ export default function NexusScene() {
             background: '#fff',
             opacity: 0.6,
             animation: `twinkle ${s.duration}s ${s.delay}s ease-in-out infinite`,
+          }}
+        />
+      ))}
+
+      {/* Orbit ring guides (subtle) */}
+      {STRUCTURES.map((s) => (
+        <div
+          key={`ring-${s.id}`}
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            width: `${s.orbitRadius * 2}px`,
+            height: `${s.orbitRadius * 2}px`,
+            borderRadius: '50%',
+            border: `1px solid ${s.active ? 'rgba(0,245,212,0.07)' : 'rgba(100,100,100,0.05)'}`,
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
           }}
         />
       ))}
@@ -187,8 +206,19 @@ export default function NexusScene() {
                 color: s.active ? 'var(--teal)' : 'rgba(80,80,100,0.45)',
                 textShadow: s.active ? 'var(--glow-teal)' : 'none',
                 whiteSpace: 'nowrap',
+                fontWeight: s.active ? 'bold' : 'normal',
+                marginBottom: '2px',
               }}>
                 {s.label}
+              </div>
+              <div style={{
+                fontSize: '8px',
+                letterSpacing: '0.5px',
+                color: s.active ? 'rgba(0,245,212,0.35)' : 'rgba(80,80,100,0.3)',
+                whiteSpace: 'nowrap',
+                marginBottom: '2px',
+              }}>
+                {s.sublabel}
               </div>
               {!s.active && (
                 <div style={{

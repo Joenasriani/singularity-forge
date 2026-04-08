@@ -98,7 +98,7 @@ export default function SiloScene() {
       const msg = evaluateAxiom(state, 'hatch_open')
       if (msg) addAxiomMessage(msg)
       addChronicleEvent('Hatch A7 forced open')
-      setHatchMsg(null)
+      setHatchMsg('HATCH OPEN — ACCESS GRANTED')
     } else {
       setHatchMsg(`INSUFFICIENT ENERGY — NEED 20, HAVE ${state.energy}`)
       setTimeout(() => setHatchMsg(null), 3000)
@@ -171,7 +171,7 @@ export default function SiloScene() {
           letterSpacing: '1px',
           color: 'var(--amber)',
         }}>
-          SCRAP: {state.scrap}u
+          SCRAP: {state.scrap}
         </div>
 
         {/* WASD hint */}
