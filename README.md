@@ -2,7 +2,11 @@
 
 > *Become someone who builds intelligent machines.*
 
-## Running Locally
+A browser-based robotics and AI competency platform — Phase I vertical slice prototype.
+
+---
+
+## Quick Start
 
 ```bash
 npm install
@@ -10,13 +14,23 @@ npm run dev
 # Opens at http://localhost:5173
 ```
 
+## All Available Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start development server (hot reload) |
+| `npm run build` | TypeScript compile + Vite production build |
+| `npm run preview` | Serve the production build locally |
+| `npm run lint` | Run ESLint on all source files |
+
 ## What's Working (Phase 1)
 
-- **Nexus scene** — infinite void with 4 structures, The Arm is interactive
-- **The Drop** — urgency onboarding: alarms, scanlines, countdown, meaningful choice
-- **The Silo** — explorable industrial space with 3 interactive nodes
-- **Axiom** — reactive rules-driven mentor system (no LLM, pure state logic)
-- **Diegetic UI shell** — Status / Signal / Compass / Chronicle panels always visible
+- **Nexus** — infinite void, animated stars, 4 orbiting structures. Only **The Arm** is selectable; others show `Coming Soon` on hover.
+- **The Drop** — urgency onboarding: CRT scanlines, alarm border flash, sequential boot messages, 45 s countdown (amber → red at ≤10 s), sprint vs. crawlspace choice. Auto-resolves to crawl at `t=0`.
+- **The Silo** — explorable 2D industrial room. WASD / arrow movement, three interactive nodes (hatch, salvage, locked Weave door). Node state persists in game context.
+- **Axiom Mentor v1** — pure rules engine, no LLM. Deterministic triggers wired to game-state events (drop choice, silo entry, low energy, hesitation). Messages surface in Signal panel with slide-in animation.
+- **Diegetic UI Shell** — four persistent corner panels: Status (gauges), Signal (Axiom feed), Compass (needle + objective), Chronicle (event log).
+- **Scene transitions** — smooth 300 ms cross-fade between Nexus → Drop → Silo.
 
 ## Coming Soon (not yet implemented)
 
@@ -26,3 +40,61 @@ npm run dev
 - AI mentor backend (LLM-powered Axiom)
 - Credentials / blockchain-anchored portfolio
 - Multiplayer / guild systems
+
+---
+
+## Deployment
+
+### Static preview (Vercel — recommended)
+
+This project is a **100% static Vite frontend** with no backend, no server-side rendering, and no environment variables required for the prototype.
+
+**Vercel project settings:**
+
+| Setting | Value |
+|---|---|
+| Framework Preset | `Vite` |
+| Root Directory | `.` (repository root) |
+| Build Command | `npm run build` |
+| Output Directory | `dist` |
+| Install Command | `npm install` |
+| Node.js Version | `18.x` or `20.x` |
+
+No environment variables are needed for Phase 1.
+
+### Manual static hosting
+
+```bash
+npm run build      # produces dist/
+npm run preview    # verify locally at http://localhost:4173
+```
+
+Upload the `dist/` folder to any static host (Netlify, GitHub Pages, Cloudflare Pages, S3, etc.).
+
+---
+
+## Architecture Notes
+
+```
+src/
+  store/gameState.ts          # Single React context + useReducer (all state)
+  components/
+    scenes/
+      NexusScene.tsx          # Path selection screen
+      DropScene.tsx           # Crisis onboarding micro-loop
+      SiloScene.tsx           # Explorable room with interactive nodes
+    axiom/
+      AxiomEngine.ts          # Rules-based mentor (no LLM)
+      AxiomDisplay.tsx        # (reserved)
+    ui/
+      DiegeticShell.tsx       # Corner-panel HUD wrapper
+      StatusPanel.tsx         # Armor / Heat / Energy gauges
+      SignalPanel.tsx         # Axiom message feed
+      CompassPanel.tsx        # ASCII compass + objective
+      ChroniclePanel.tsx      # Event log
+  App.tsx                     # SceneRouter with fade transitions
+  App.css                     # Global styles + keyframe animations
+```
+
+Stack: **Vite 6 + React 18 + TypeScript 5**. No external UI library. No backend.
+

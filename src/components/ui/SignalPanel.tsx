@@ -35,18 +35,26 @@ export default function SignalPanel() {
           — awaiting transmission —
         </div>
       )}
-      {recent.map((msg) => (
-        <div key={msg.id} style={{ marginBottom: '8px' }}>
+      {recent.map((msg, i) => (
+        <div
+          key={msg.id}
+          style={{
+            marginBottom: '8px',
+            animation: i === 0 ? 'axiom-slide-in 0.3s ease forwards' : 'none',
+          }}
+        >
           <div style={{
-            color: 'var(--teal)',
-            fontSize: '11px',
-            lineHeight: '1.4',
-            textShadow: 'var(--glow-teal)',
+            color: i === 0 ? 'var(--teal-bright)' : 'var(--teal)',
+            fontSize: i === 0 ? '11px' : '10px',
+            lineHeight: '1.5',
+            textShadow: i === 0 ? '0 0 10px rgba(0,245,212,0.5)' : 'var(--glow-teal)',
+            borderLeft: i === 0 ? '2px solid var(--teal)' : '2px solid rgba(0,245,212,0.15)',
+            paddingLeft: '6px',
           }}>
             {msg.text}
           </div>
-          <div style={{ color: 'rgba(0,245,212,0.35)', fontSize: '9px', marginTop: '2px' }}>
-            {formatRelative(msg.timestamp)}
+          <div style={{ color: 'rgba(0,245,212,0.3)', fontSize: '9px', marginTop: '2px', paddingLeft: '8px' }}>
+            AXIOM · {formatRelative(msg.timestamp)}
           </div>
         </div>
       ))}

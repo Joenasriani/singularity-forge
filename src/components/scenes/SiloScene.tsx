@@ -22,7 +22,7 @@ export default function SiloScene() {
   const keysRef = useRef<Set<string>>(new Set())
   const siloEnteredRef = useRef(false)
   const hesitationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastKeyTimeRef = useRef<number>(Date.now())
+  const lastKeyTimeRef = useRef<number>(0)
   const animFrameRef = useRef<number>(0)
   const [hatchMsg, setHatchMsg] = useState<string | null>(null)
 
@@ -242,6 +242,10 @@ interface NodeProps {
 }
 
 function InteractiveNode({ x, y, label, actionLabel, onClick, active, color, statusMsg }: NodeProps) {
+  const [hovered, setHovered] = useState(false)
+  const isClickable = active && !!onClick
+  const completed = !active
+
   return (
     <div style={{
       position: 'absolute',
@@ -253,31 +257,94 @@ function InteractiveNode({ x, y, label, actionLabel, onClick, active, color, sta
     }}>
       <div
         onClick={onClick}
+        onMouseEnter={() => { if (isClickable) setHovered(true) }}
+        onMouseLeave={() => setHovered(false)}
         style={{
-          width: '60px',
-          height: '60px',
-          border: `2px solid ${color}`,
-          borderRadius: '6px',
-          background: `${color}14`,
-          boxShadow: active ? `0 0 12px ${color}60` : 'none',
-          cursor: active && onClick ? 'pointer' : 'default',
+          width: '64px',
+          height: '64px',
+          border: `2px solid ${completed ? 'rgba(0,245,212,0.5)' : color}`,
+          borderRadius: '8px',
+          background: completed
+            ? 'rgba(0,245,212,0.06)'
+            : hovered
+              ? `color-mix(in srgb, ${color} 20%, transparent)`
+              : `color-mix(in srgb, ${color} 8%, transparent)`,
+          boxShadow: completed
+            ? 'none'
+            : hovered
+              ? `0 0 20px color-mix(in srgb, ${color} 50%, transparent), 0 0 0 1px color-mix(in srgb, ${color} 30%, transparent)`
+              : `0 0 12px color-mix(in srgb, ${color} 30%, transparent)`,
+          cursor: isClickable ? 'pointer' : 'default',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          margin: '0 auto 6px',
-          transition: 'all 0.2s',
-        }}
-        onMouseEnter={(e) => { if (active && onClick) e.currentTarget.style.background = `${color}2a` }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = `${color}14` }}
+          margin: '0 auto 8px',
+          transition: 'all 0.18s ease',
+          transform: hovered && isClickable ? 'scale(1.06)' : 'scale(1)',
+          animation: isClickable && !hovered ? `node-pulse 2.5s ease-in-out infinite` : 'none',
+          '--node-color': color,
+        } as React.CSSProperties}
       >
-        <div style={{ fontSize: '20px' }}>{active ? '◈' : '✓'}</div>
+        <div style={{
+          fontSize: '22px',
+          color: completed ? 'rgba(0,245,212,0.6)' : color,
+          textShadow: completed ? 'none' : `0 0 8px ${color}`,
+          lineHeight: 1,
+        }}>
+          {completed ? '✓' : '◈'}
+        </div>
+        {isClickable && !hovered && (
+          <div style={{
+            fontSize: '7px',
+            color: `color-mix(in srgb, ${color} 60%, transparent)`,
+            letterSpacing: '1px',
+            marginTop: '3px',
+          }}>
+            [E]
+          </div>
+        )}
+        {isClickable && hovered && (
+          <div style={{
+            fontSize: '7px',
+            color: color,
+            letterSpacing: '1px',
+            marginTop: '3px',
+            textShadow: `0 0 6px ${color}`,
+          }}>
+            INTERACT
+          </div>
+        )}
       </div>
-      <div style={{ fontSize: '9px', letterSpacing: '1px', color, marginBottom: '3px' }}>{label}</div>
+      <div style={{
+        fontSize: '9px',
+        letterSpacing: '1.5px',
+        color: completed ? 'rgba(0,245,212,0.5)' : color,
+        textShadow: completed ? 'none' : `0 0 6px color-mix(in srgb, ${color} 40%, transparent)`,
+        marginBottom: '3px',
+      }}>
+        {label}
+      </div>
       {actionLabel && active && (
-        <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.5px' }}>{actionLabel}</div>
+        <div style={{
+          fontSize: '8px',
+          color: hovered ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.35)',
+          letterSpacing: '0.5px',
+          transition: 'color 0.15s',
+        }}>
+          {actionLabel}
+        </div>
       )}
       {statusMsg && (
-        <div style={{ fontSize: '8px', color: 'var(--teal)', marginTop: '2px' }}>{statusMsg}</div>
+        <div style={{
+          fontSize: '8px',
+          color: statusMsg.includes('INSUFFICIENT') ? 'var(--danger)' : 'var(--teal)',
+          marginTop: '3px',
+          letterSpacing: '0.5px',
+          animation: 'axiom-slide-in 0.2s ease forwards',
+        }}>
+          {statusMsg}
+        </div>
       )}
     </div>
   )
@@ -293,31 +360,32 @@ function LockedNode({ x, y, label }: { x: number; y: number; label: string }) {
       textAlign: 'center',
       zIndex: 10,
       cursor: 'not-allowed',
-      opacity: 0.5,
     }}>
       <div style={{
-        width: '60px',
-        height: '60px',
-        border: '2px solid rgba(100,100,100,0.4)',
-        borderRadius: '6px',
-        background: 'rgba(40,40,60,0.3)',
+        width: '64px',
+        height: '64px',
+        border: '2px solid rgba(80,80,110,0.3)',
+        borderRadius: '8px',
+        background: 'rgba(20,20,40,0.4)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        margin: '0 auto 6px',
+        margin: '0 auto 8px',
+        opacity: 0.55,
       }}>
-        <div style={{ fontSize: '20px', color: 'rgba(100,100,100,0.5)' }}>🔒</div>
+        <div style={{ fontSize: '22px', color: 'rgba(80,80,110,0.6)' }}>🔒</div>
       </div>
-      <div style={{ fontSize: '9px', letterSpacing: '1px', color: 'rgba(100,100,100,0.5)', marginBottom: '3px' }}>{label}</div>
+      <div style={{ fontSize: '9px', letterSpacing: '1.5px', color: 'rgba(80,80,110,0.5)', marginBottom: '5px' }}>{label}</div>
       <div style={{
         fontSize: '8px',
-        background: 'rgba(255,183,0,0.15)',
-        border: '1px solid rgba(255,183,0,0.4)',
+        background: 'rgba(255,183,0,0.12)',
+        border: '1px solid rgba(255,183,0,0.35)',
         borderRadius: '3px',
-        padding: '1px 6px',
+        padding: '2px 8px',
         color: 'var(--amber)',
-        letterSpacing: '1px',
+        letterSpacing: '1.5px',
         display: 'inline-block',
+        textShadow: '0 0 8px rgba(255,183,0,0.3)',
       }}>
         Coming Soon
       </div>

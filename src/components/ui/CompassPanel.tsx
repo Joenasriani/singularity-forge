@@ -1,10 +1,18 @@
+import { useState, useEffect } from 'react'
 import { useGameState } from '../../store/gameState'
 
 const NEEDLE_CHARS = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖']
 
 export default function CompassPanel() {
   const { state } = useGameState()
-  const tickIndex = Math.floor(Date.now() / 800) % NEEDLE_CHARS.length
+  const [tickIndex, setTickIndex] = useState(0)
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTickIndex((t) => (t + 1) % NEEDLE_CHARS.length)
+    }, 800)
+    return () => clearInterval(id)
+  }, [])
 
   return (
     <div style={{

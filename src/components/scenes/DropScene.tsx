@@ -53,13 +53,6 @@ export default function DropScene() {
     return () => { if (countdownRef.current) clearInterval(countdownRef.current) }
   }, [])
 
-  // Auto-choose crawl when countdown hits 0
-  useEffect(() => {
-    if (countdown === 0 && !chosen) {
-      handleChoice('crawl')
-    }
-  }, [countdown, chosen]) // eslint-disable-line react-hooks/exhaustive-deps
-
   function handleChoice(choice: 'sprint' | 'crawl') {
     if (chosen) return
     setChosen(true)
@@ -76,20 +69,31 @@ export default function DropScene() {
     }, 2000)
   }
 
+  // Auto-choose crawl when countdown hits 0 (placed after handleChoice declaration)
+  useEffect(() => {
+    if (countdown === 0 && !chosen) {
+      handleChoice('crawl')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countdown, chosen])
+
   const countdownColor = countdown <= 10 ? 'var(--danger)' : countdown <= 20 ? 'var(--amber)' : 'var(--teal)'
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: '#070710',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      animation: 'flicker 8s ease-in-out infinite, alarm-border 1.2s ease-in-out infinite',
-      overflow: 'hidden',
-    }}>
+    <div
+      className="scene-enter"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: '#070710',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        animation: 'flicker 8s ease-in-out infinite, alarm-border 1.2s ease-in-out infinite',
+        overflow: 'hidden',
+      }}
+    >
       {/* Scanlines */}
       <div style={{
         position: 'absolute',
