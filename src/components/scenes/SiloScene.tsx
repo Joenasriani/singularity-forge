@@ -22,7 +22,6 @@ export default function SiloScene() {
   const keysRef = useRef<Set<string>>(new Set())
   const siloEnteredRef = useRef(false)
   const hesitationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastKeyTimeRef = useRef<number>(0)
   const animFrameRef = useRef<number>(0)
   const [hatchMsg, setHatchMsg] = useState<string | null>(null)
 
@@ -46,7 +45,6 @@ export default function SiloScene() {
 
   // Hesitation axiom
   const resetHesitation = useCallback(() => {
-    lastKeyTimeRef.current = Date.now()
     if (hesitationTimerRef.current) clearTimeout(hesitationTimerRef.current)
     hesitationTimerRef.current = setTimeout(() => {
       const msg = evaluateAxiom(state, 'hesitation')

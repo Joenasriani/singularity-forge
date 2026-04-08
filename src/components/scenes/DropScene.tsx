@@ -20,7 +20,7 @@ export default function DropScene() {
   const bootRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Refs so interval callbacks can read latest values without re-subscribing
   const chosenRef = useRef(false)
-  const handleChoiceRef = useRef<(choice: 'sprint' | 'crawl') => void>(() => {})
+  const handleChoiceRef = useRef<((choice: 'sprint' | 'crawl') => void) | null>(null)
 
   const handleChoice = useCallback((choice: 'sprint' | 'crawl') => {
     if (chosenRef.current) return
@@ -67,7 +67,7 @@ export default function DropScene() {
         if (c <= 1) {
           clearInterval(countdownRef.current!)
           // Auto-select via ref so no setState-in-effect
-          setTimeout(() => handleChoiceRef.current('crawl'), 0)
+          setTimeout(() => handleChoiceRef.current?.('crawl'), 0)
           return 0
         }
         return c - 1
