@@ -245,9 +245,16 @@ interface NodeProps {
   statusMsg: string | null
 }
 
+// Maps CSS variable names to raw RGB values for use in rgba() backgrounds
+const COLOR_RGB: Record<string, string> = {
+  'var(--teal)': '0, 245, 212',
+  'var(--amber)': '255, 183, 0',
+}
+
 function InteractiveNode({ x, y, label, actionLabel, onClick, state: nodeState, color, statusMsg }: NodeProps) {
   const [hovered, setHovered] = useState(false)
   const isActive = nodeState === 'active' && !!onClick
+  const colorRgb = COLOR_RGB[color] ?? '0, 245, 212'
 
   return (
     <div style={{
@@ -263,7 +270,12 @@ function InteractiveNode({ x, y, label, actionLabel, onClick, state: nodeState, 
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         tabIndex={isActive ? 0 : -1}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick?.() }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault() // prevent page scroll on Space
+            onClick?.()
+          }
+        }}
         role={isActive ? 'button' : undefined}
         aria-label={isActive ? `${label}: ${actionLabel}` : label}
         style={{
@@ -274,8 +286,8 @@ function InteractiveNode({ x, y, label, actionLabel, onClick, state: nodeState, 
           background: nodeState === 'done'
             ? 'rgba(0,245,212,0.05)'
             : hovered
-              ? `color-mix(in srgb, ${color} 20%, transparent)`
-              : `color-mix(in srgb, ${color} 8%, transparent)`,
+              ? `rgba(${colorRgb}, 0.18)`
+              : `rgba(${colorRgb}, 0.07)`,
           boxShadow: nodeState === 'done'
             ? 'none'
             : isActive

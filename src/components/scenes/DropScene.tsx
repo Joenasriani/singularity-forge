@@ -66,7 +66,7 @@ export default function DropScene() {
       setCountdown((c) => {
         if (c <= 1) {
           clearInterval(countdownRef.current!)
-          // Auto-select via ref so no setState-in-effect
+          // Defer outside the setState updater to avoid setState-inside-setState
           setTimeout(() => handleChoiceRef.current?.('crawl'), 0)
           return 0
         }
