@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import './App.css'
 import { GameStateProvider, useGameState, type Scene } from './store/gameState'
 import DiegeticShell from './components/ui/DiegeticShell'
 import NexusScene from './components/scenes/NexusScene'
@@ -40,7 +41,9 @@ function SceneRouter() {
         transition: 'opacity 300ms ease',
       }}
     >
-      {content}
+      <div key={displayScene} className="scene-wrapper">
+        {content}
+      </div>
     </div>
   )
 }

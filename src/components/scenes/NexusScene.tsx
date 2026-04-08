@@ -24,6 +24,7 @@ function generateStars(count: number): Star[] {
 interface Structure {
   id: string
   label: string
+  sublabel: string
   active: boolean
   orbitRadius: number
   orbitDuration: number
@@ -31,16 +32,17 @@ interface Structure {
 }
 
 const STRUCTURES: Structure[] = [
-  { id: 'arm',   label: 'THE ARM',   active: true,  orbitRadius: 180, orbitDuration: 20, orbitDelay: 0   },
-  { id: 'eye',   label: 'THE EYE',   active: false, orbitRadius: 240, orbitDuration: 28, orbitDelay: -7  },
-  { id: 'swarm', label: 'THE SWARM', active: false, orbitRadius: 300, orbitDuration: 35, orbitDelay: -14 },
-  { id: 'mind',  label: 'THE MIND',  active: false, orbitRadius: 150, orbitDuration: 16, orbitDelay: -5  },
+  { id: 'arm',   label: 'THE ARM',   sublabel: 'Manipulation & Control', active: true,  orbitRadius: 180, orbitDuration: 20, orbitDelay: 0   },
+  { id: 'eye',   label: 'THE EYE',   sublabel: 'Vision & Perception',    active: false, orbitRadius: 240, orbitDuration: 28, orbitDelay: -7  },
+  { id: 'swarm', label: 'THE SWARM', sublabel: 'Distributed Systems',    active: false, orbitRadius: 300, orbitDuration: 35, orbitDelay: -14 },
+  { id: 'mind',  label: 'THE MIND',  sublabel: 'Reasoning & Planning',   active: false, orbitRadius: 150, orbitDuration: 16, orbitDelay: -5  },
 ]
 
 export default function NexusScene() {
   const { setScene, addChronicleEvent, setObjective } = useGameState()
-  const stars = useMemo(() => generateStars(100), [])
+  const stars = useMemo(() => generateStars(140), [])
   const [tooltip, setTooltip] = useState<string | null>(null)
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
 
   function handleArmClick() {
     addChronicleEvent('Entered The Arm path')
@@ -52,7 +54,7 @@ export default function NexusScene() {
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: 'radial-gradient(ellipse at 50% 60%, #0d1020 0%, #080810 55%, #050508 100%)',
+      background: 'radial-gradient(ellipse at 50% 55%, #0d1022 0%, #080812 50%, #050508 100%)',
       overflow: 'hidden',
       animation: 'scene-fade-in 0.6s ease forwards',
     }}>
@@ -67,23 +69,42 @@ export default function NexusScene() {
             width: `${s.size}px`,
             height: `${s.size}px`,
             borderRadius: '50%',
-            background: '#fff',
-            opacity: 0.6,
+            background: s.size > 2 ? 'rgba(180,220,255,0.9)' : '#fff',
+            opacity: 0.5 + s.size * 0.1,
             animation: `twinkle ${s.duration}s ${s.delay}s ease-in-out infinite`,
           }}
         />
       ))}
 
-      {/* Subtle radial ring at center */}
+      {/* Orbit ring guides */}
+      {STRUCTURES.map((s) => (
+        <div
+          key={`ring-${s.id}`}
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            width: `${s.orbitRadius * 2}px`,
+            height: `${s.orbitRadius * 2}px`,
+            marginLeft: `-${s.orbitRadius}px`,
+            marginTop: `-${s.orbitRadius}px`,
+            borderRadius: '50%',
+            border: `1px solid ${s.active ? 'rgba(0,245,212,0.07)' : 'rgba(80,80,100,0.06)'}`,
+            pointerEvents: 'none',
+          }}
+        />
+      ))}
+
+      {/* Subtle radial glow at center */}
       <div style={{
         position: 'absolute',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: '600px',
-        height: '600px',
+        width: '500px',
+        height: '500px',
         borderRadius: '50%',
-        background: 'radial-gradient(ellipse at center, rgba(0,245,212,0.04) 0%, transparent 70%)',
+        background: 'radial-gradient(ellipse at center, rgba(0,245,212,0.05) 0%, transparent 70%)',
         pointerEvents: 'none',
       }} />
 
@@ -96,7 +117,6 @@ export default function NexusScene() {
         textAlign: 'center',
         zIndex: 10,
         pointerEvents: 'none',
-        animation: 'slide-up-fade 0.8s 0.2s ease both',
       }}>
         <div style={{
           fontSize: 'clamp(20px, 3vw, 32px)',
@@ -106,6 +126,7 @@ export default function NexusScene() {
           textShadow: '0 0 30px rgba(0,245,212,0.6), var(--glow-teal)',
           marginBottom: '10px',
           textTransform: 'uppercase',
+          animation: 'nexus-title-in 0.7s 0.1s ease both',
         }}>
           Singularity Forge
         </div>
@@ -113,8 +134,8 @@ export default function NexusScene() {
           fontSize: '10px',
           letterSpacing: '5px',
           color: 'rgba(0,245,212,0.4)',
-          animation: 'pulse-glow 3s ease-in-out infinite',
           textTransform: 'uppercase',
+          animation: 'nexus-sub-in 0.6s 0.4s ease both',
         }}>
           Select Your Path
         </div>
@@ -123,6 +144,7 @@ export default function NexusScene() {
           fontSize: '9px',
           letterSpacing: '2px',
           color: 'rgba(0,245,212,0.2)',
+          animation: 'nexus-sub-in 0.6s 0.7s ease both',
         }}>
           — Phase I: The Arm —
         </div>
@@ -147,8 +169,14 @@ export default function NexusScene() {
           >
             <div
               onClick={s.active ? handleArmClick : undefined}
-              onMouseEnter={() => !s.active && setTooltip(s.id)}
-              onMouseLeave={() => setTooltip(null)}
+              onMouseEnter={() => {
+                if (!s.active) setTooltip(s.id)
+                setHoveredId(s.id)
+              }}
+              onMouseLeave={() => {
+                setTooltip(null)
+                setHoveredId(null)
+              }}
               style={{
                 transform: 'translate(-50%, -50%)',
                 cursor: s.active ? 'pointer' : 'default',
@@ -161,7 +189,11 @@ export default function NexusScene() {
                 height: s.active ? '52px' : '38px',
                 borderRadius: '50%',
                 border: `2px solid ${s.active ? 'var(--teal)' : 'rgba(80,80,100,0.35)'}`,
-                background: s.active ? 'rgba(0,245,212,0.08)' : 'rgba(40,40,60,0.15)',
+                background: s.active
+                  ? hoveredId === s.id
+                    ? 'rgba(0,245,212,0.15)'
+                    : 'rgba(0,245,212,0.08)'
+                  : 'rgba(40,40,60,0.15)',
                 boxShadow: s.active ? '0 0 20px rgba(0,245,212,0.35), inset 0 0 12px rgba(0,245,212,0.1)' : 'none',
                 animation: s.active ? 'node-pulse 2.5s ease-in-out infinite' : 'none',
                 '--pulse-color': 'var(--teal)',
@@ -190,6 +222,28 @@ export default function NexusScene() {
               }}>
                 {s.label}
               </div>
+              <div style={{
+                fontSize: '8px',
+                letterSpacing: '0.5px',
+                color: s.active ? 'rgba(0,245,212,0.4)' : 'rgba(80,80,100,0.3)',
+                whiteSpace: 'nowrap',
+                marginTop: '2px',
+              }}>
+                {s.sublabel}
+              </div>
+              {s.active && hoveredId === s.id && (
+                <div style={{
+                  fontSize: '9px',
+                  color: 'var(--teal-bright)',
+                  letterSpacing: '2px',
+                  marginTop: '4px',
+                  whiteSpace: 'nowrap',
+                  textShadow: 'var(--glow-teal)',
+                  animation: 'nexus-sub-in 0.2s ease both',
+                }}>
+                  ▶ ENTER
+                </div>
+              )}
               {!s.active && (
                 <div style={{
                   fontSize: '8px',
@@ -224,6 +278,23 @@ export default function NexusScene() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Bottom banner */}
+      <div style={{
+        position: 'absolute',
+        bottom: '28px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        fontSize: '9px',
+        letterSpacing: '3px',
+        color: 'rgba(0,245,212,0.3)',
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+        animation: 'nexus-sub-in 0.6s 1s ease both',
+        pointerEvents: 'none',
+      }}>
+        PHASE I — THE ARM IS ACTIVE
       </div>
     </div>
   )
