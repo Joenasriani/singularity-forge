@@ -116,7 +116,7 @@ export default function SiloScene() {
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: '#0a0a0f',
+      background: 'radial-gradient(ellipse at 50% 40%, #0c0c1e 0%, #07070f 100%)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -128,14 +128,14 @@ export default function SiloScene() {
         width: `${ROOM_W}px`,
         height: `${ROOM_H}px`,
         maxWidth: '96vw',
-        background: '#0c0c18',
-        border: '1px solid rgba(0,245,212,0.18)',
+        background: 'linear-gradient(160deg, #0d0d1c 0%, #0a0a16 60%, #080810 100%)',
+        border: '1px solid rgba(0,245,212,0.22)',
         borderRadius: '4px',
         overflow: 'hidden',
-        boxShadow: '0 0 80px rgba(0,0,0,0.9), inset 0 0 40px rgba(0,0,0,0.6)',
+        boxShadow: '0 0 80px rgba(0,0,0,0.9), inset 0 0 60px rgba(0,0,0,0.5)',
       }}>
         {/* Grid lines — industrial floor */}
-        <svg style={{ position: 'absolute', inset: 0, opacity: 0.08 }} width={ROOM_W} height={ROOM_H}>
+        <svg style={{ position: 'absolute', inset: 0, opacity: 0.06 }} width={ROOM_W} height={ROOM_H}>
           {Array.from({ length: 16 }, (_, i) => (
             <line key={`v${i}`} x1={i * 50} y1={0} x2={i * 50} y2={ROOM_H} stroke="#00f5d4" strokeWidth="1" />
           ))}
@@ -145,8 +145,8 @@ export default function SiloScene() {
         </svg>
 
         {/* Teal accent wall lines */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, var(--teal), transparent)', opacity: 0.5 }} />
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, rgba(0,245,212,0.3), transparent)', opacity: 0.3 }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, var(--teal), transparent)', opacity: 0.4 }} />
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(0,245,212,0.2), transparent)', opacity: 0.3 }} />
 
         {/* Room label */}
         <div style={{
@@ -154,10 +154,11 @@ export default function SiloScene() {
           top: '12px',
           left: '50%',
           transform: 'translateX(-50%)',
-          fontSize: '10px',
-          letterSpacing: '4px',
-          color: 'rgba(0,245,212,0.35)',
+          fontSize: '9px',
+          letterSpacing: '5px',
+          color: 'rgba(0,245,212,0.3)',
           userSelect: 'none',
+          textTransform: 'uppercase',
         }}>
           THE SILO — SECTOR 01
         </div>
@@ -182,47 +183,50 @@ export default function SiloScene() {
           transform: 'translateX(-50%)',
           fontSize: '9px',
           letterSpacing: '1px',
-          color: 'rgba(0,245,212,0.2)',
+          color: 'rgba(0,245,212,0.18)',
           userSelect: 'none',
         }}>
-          [ WASD / ARROWS ] — move
+          [ WASD / ARROWS ] — move · [ ENTER / SPACE ] — activate
         </div>
 
         {/* Node: STUCK HATCH */}
         <InteractiveNode
           x={100} y={200}
-          label={state.siloHatchOpen ? 'HATCH A7' : 'HATCH A7 — SEALED'}
-          actionLabel={state.siloHatchOpen ? undefined : 'FORCE OPEN  [−20 ENERGY]'}
+          label={state.siloHatchOpen ? 'HATCH A7' : 'HATCH A7'}
+          sublabel={state.siloHatchOpen ? 'ACCESS GRANTED' : 'SEALED · −20 ENERGY'}
+          actionLabel={state.siloHatchOpen ? undefined : 'FORCE OPEN'}
           onClick={state.siloHatchOpen ? undefined : handleHatch}
-          state={state.siloHatchOpen ? 'done' : 'active'}
+          completed={state.siloHatchOpen}
           color={state.siloHatchOpen ? 'var(--teal)' : 'var(--amber)'}
-          statusMsg={state.siloHatchOpen ? 'ACCESS GRANTED' : hatchMsg}
+          statusMsg={hatchMsg}
         />
 
         {/* Node: SALVAGE */}
         <InteractiveNode
           x={520} y={160}
           label="SALVAGE NODE"
-          actionLabel={state.siloScrapCollected ? undefined : 'LOOT  [−3 ENERGY · +5 SCRAP]'}
+          sublabel={state.siloScrapCollected ? 'DEPLETED' : '−3 ENERGY · +5 SCRAP'}
+          actionLabel={state.siloScrapCollected ? undefined : 'LOOT'}
           onClick={state.siloScrapCollected ? undefined : handleSalvage}
-          state={state.siloScrapCollected ? 'done' : 'active'}
+          completed={state.siloScrapCollected}
           color="var(--amber)"
-          statusMsg={state.siloScrapCollected ? 'DEPLETED' : null}
+          statusMsg={null}
         />
 
         {/* Node: LOCKED DOOR */}
-        <LockedNode x={700} y={230} label="THE WEAVE ACCESS" />
+        <LockedNode x={700} y={230} label="THE WEAVE" />
 
         {/* Player dot */}
         <div style={{
           position: 'absolute',
           left: player.x,
           top: player.y,
-          width: '10px',
-          height: '10px',
+          width: '8px',
+          height: '8px',
           borderRadius: '50%',
           background: 'var(--teal)',
-          boxShadow: '0 0 10px var(--teal), 0 0 20px rgba(0,245,212,0.4)',
+          border: '1px solid rgba(0,245,212,0.6)',
+          boxShadow: '0 0 8px var(--teal), 0 0 16px rgba(0,245,212,0.3)',
           transform: 'translate(-50%, -50%)',
           transition: 'none',
           zIndex: 20,
@@ -238,15 +242,17 @@ interface NodeProps {
   x: number
   y: number
   label: string
+  sublabel?: string
   actionLabel?: string
   onClick?: () => void
-  state: NodeState
+  completed?: boolean
   color: string
   statusMsg: string | null
 }
 
-function InteractiveNode({ x, y, label, actionLabel, onClick, state: nodeState, color, statusMsg }: NodeProps) {
+function InteractiveNode({ x, y, label, sublabel, actionLabel, onClick, completed, color, statusMsg }: NodeProps) {
   const [hovered, setHovered] = useState(false)
+  const nodeState: NodeState = completed ? 'done' : 'active'
   const isActive = nodeState === 'active' && !!onClick
 
   return (
@@ -301,17 +307,27 @@ function InteractiveNode({ x, y, label, actionLabel, onClick, state: nodeState, 
         fontSize: '9px',
         letterSpacing: '1px',
         color: nodeState === 'done' ? 'rgba(0,245,212,0.5)' : color,
-        marginBottom: '3px',
+        marginBottom: '2px',
         fontWeight: nodeState === 'active' ? 'bold' : 'normal',
       }}>
         {label}
       </div>
-      {actionLabel && nodeState === 'active' && (
+      {sublabel && (
         <div style={{
           fontSize: '8px',
-          color: hovered ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.35)',
+          color: 'rgba(255,255,255,0.28)',
           letterSpacing: '0.5px',
-          transition: 'color 0.15s ease',
+          marginBottom: '2px',
+        }}>
+          {sublabel}
+        </div>
+      )}
+      {actionLabel && nodeState === 'active' && hovered && (
+        <div style={{
+          fontSize: '8px',
+          color: 'rgba(255,255,255,0.7)',
+          letterSpacing: '0.5px',
+          animation: 'axiom-appear 0.15s ease both',
         }}>
           {actionLabel}
         </div>
@@ -319,7 +335,7 @@ function InteractiveNode({ x, y, label, actionLabel, onClick, state: nodeState, 
       {statusMsg && (
         <div style={{
           fontSize: '8px',
-          color: nodeState === 'done' ? 'rgba(0,245,212,0.6)' : 'var(--danger)',
+          color: 'var(--danger)',
           marginTop: '3px',
           letterSpacing: '0.5px',
           animation: 'axiom-appear 0.3s ease both',

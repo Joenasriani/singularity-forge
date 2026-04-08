@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer } from 'react'
+import React, { createContext, useContext, useMemo, useReducer } from 'react'
 
 export type Scene = 'nexus' | 'drop' | 'silo'
 export type DropChoice = 'sprint' | 'crawl' | null
@@ -117,18 +117,22 @@ const GameContext = createContext<GameContextValue | null>(null)
 export function GameStateProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState)
 
-  const value: GameContextValue = {
+  const actions = useMemo(() => ({
+    setScene: (scene: Scene) => dispatch({ type: 'SET_SCENE', scene }),
+    addAxiomMessage: (text: string) => dispatch({ type: 'ADD_AXIOM', text }),
+    addChronicleEvent: (text: string) => dispatch({ type: 'ADD_CHRONICLE', text }),
+    applyDropChoice: (choice: 'sprint' | 'crawl') => dispatch({ type: 'APPLY_DROP_CHOICE', choice }),
+    setSiloHatchOpen: (open: boolean) => dispatch({ type: 'SET_SILO_HATCH_OPEN', open }),
+    setSiloScrapCollected: (collected: boolean) => dispatch({ type: 'SET_SILO_SCRAP_COLLECTED', collected }),
+    adjustEnergy: (delta: number) => dispatch({ type: 'ADJUST_ENERGY', delta }),
+    adjustHeat: (delta: number) => dispatch({ type: 'ADJUST_HEAT', delta }),
+    setObjective: (text: string) => dispatch({ type: 'SET_OBJECTIVE', text }),
+  }), [])
+
+  const value = useMemo<GameContextValue>(() => ({
     state,
-    setScene: (scene) => dispatch({ type: 'SET_SCENE', scene }),
-    addAxiomMessage: (text) => dispatch({ type: 'ADD_AXIOM', text }),
-    addChronicleEvent: (text) => dispatch({ type: 'ADD_CHRONICLE', text }),
-    applyDropChoice: (choice) => dispatch({ type: 'APPLY_DROP_CHOICE', choice }),
-    setSiloHatchOpen: (open) => dispatch({ type: 'SET_SILO_HATCH_OPEN', open }),
-    setSiloScrapCollected: (collected) => dispatch({ type: 'SET_SILO_SCRAP_COLLECTED', collected }),
-    adjustEnergy: (delta) => dispatch({ type: 'ADJUST_ENERGY', delta }),
-    adjustHeat: (delta) => dispatch({ type: 'ADJUST_HEAT', delta }),
-    setObjective: (text) => dispatch({ type: 'SET_OBJECTIVE', text }),
-  }
+    ...actions,
+  }), [state, actions])
 
   return React.createElement(GameContext.Provider, { value }, children)
 }
