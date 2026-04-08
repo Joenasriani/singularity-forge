@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useGameState } from '../../store/gameState'
 import { evaluateAxiom } from '../axiom/AxiomEngine'
 
@@ -18,6 +18,24 @@ export default function DropScene() {
   const [chosen, setChosen] = useState<boolean>(false)
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const bootRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const chosenRef = useRef(false)
+
+  const handleChoice = useCallback((choice: 'sprint' | 'crawl') => {
+    if (chosenRef.current) return
+    chosenRef.current = true
+    setChosen(true)
+
+    const axiomEvent = choice === 'sprint' ? 'drop_sprint' : 'drop_crawl'
+    const axiomText = evaluateAxiom(state, axiomEvent)
+    applyDropChoice(choice)
+    if (axiomText) addAxiomMessage(axiomText)
+    addChronicleEvent(`Chose: ${choice === 'sprint' ? 'Sprint — Corridor 7' : 'Crawlspace Access'}`)
+
+    setTimeout(() => {
+      setScene('silo')
+      setObjective('Explore The Silo.')
+    }, 2000)
+  }, [state, setScene, applyDropChoice, addAxiomMessage, addChronicleEvent, setObjective])
 
   // Boot message sequence
   useEffect(() => {
@@ -39,12 +57,17 @@ export default function DropScene() {
     return () => clearTimeout(t)
   }, [])
 
-  // Countdown
+  // Countdown — auto-selects crawl when it reaches zero
+  const handleChoiceRef = useRef(handleChoice)
+  useEffect(() => {
+    handleChoiceRef.current = handleChoice
+  })
   useEffect(() => {
     countdownRef.current = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
           clearInterval(countdownRef.current!)
+          handleChoiceRef.current('crawl')
           return 0
         }
         return c - 1
@@ -52,29 +75,6 @@ export default function DropScene() {
     }, 1000)
     return () => { if (countdownRef.current) clearInterval(countdownRef.current) }
   }, [])
-
-  // Auto-choose crawl when countdown hits 0
-  useEffect(() => {
-    if (countdown === 0 && !chosen) {
-      handleChoice('crawl')
-    }
-  }, [countdown, chosen]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  function handleChoice(choice: 'sprint' | 'crawl') {
-    if (chosen) return
-    setChosen(true)
-
-    const axiomEvent = choice === 'sprint' ? 'drop_sprint' : 'drop_crawl'
-    const axiomText = evaluateAxiom(state, axiomEvent)
-    applyDropChoice(choice)
-    if (axiomText) addAxiomMessage(axiomText)
-    addChronicleEvent(`Chose: ${choice === 'sprint' ? 'Sprint — Corridor 7' : 'Crawlspace Access'}`)
-
-    setTimeout(() => {
-      setScene('silo')
-      setObjective('Explore The Silo.')
-    }, 2000)
-  }
 
   const countdownColor = countdown <= 10 ? 'var(--danger)' : countdown <= 20 ? 'var(--amber)' : 'var(--teal)'
 
