@@ -38,7 +38,9 @@ export default function DropScene() {
   }, [state, applyDropChoice, addAxiomMessage, addChronicleEvent, setScene, setObjective])
 
   // Keep ref in sync so interval callback can call latest handleChoice
-  handleChoiceRef.current = handleChoice
+  useEffect(() => {
+    handleChoiceRef.current = handleChoice
+  })
 
   // Boot message sequence
   useEffect(() => {
