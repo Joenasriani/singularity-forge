@@ -1,0 +1,97 @@
+/* ── Singularity Forge global styles ── */
+
+:root {
+  --bg-void: #0a0a0f;
+  --teal: #00f5d4;
+  --teal-bright: #4fffbf;
+  --amber: #ffb700;
+  --danger: #ff2244;
+  --metal: #1a1a2e;
+  --panel-bg: rgba(10, 15, 20, 0.92);
+  --glow-teal: 0 0 12px #00f5d4;
+  --glow-amber: 0 0 12px #ffb700;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg-void);
+  color: var(--teal);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  position: relative;
+}
+
+/* Grain / noise texture overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity: 0.35;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #0a0a0f; }
+::-webkit-scrollbar-thumb { background: var(--teal); border-radius: 2px; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes scanline {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 100%; }
+}
+
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(var(--orbit-r)) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(var(--orbit-r)) rotate(-360deg); }
+}
+
+@keyframes flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    filter: contrast(1.1) brightness(1);
+  }
+  20%, 24%, 55% {
+    filter: contrast(0.9) brightness(0.85);
+  }
+}
+
+@keyframes alarm-border {
+  0%, 100% { box-shadow: inset 0 0 40px rgba(255,34,68,0); }
+  50%       { box-shadow: inset 0 0 40px rgba(255,34,68,0.45); }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 0.2; }
+}
