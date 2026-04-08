@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useGameState } from '../../store/gameState'
 
 function formatRelative(timestamp: number): string {
@@ -11,7 +12,14 @@ function formatRelative(timestamp: number): string {
 
 export default function SignalPanel() {
   const { state } = useGameState()
+  const [, setTick] = useState(0)
   const recent = [...state.axiomMessages].slice(-4).reverse()
+
+  // Re-render every 10s so relative timestamps stay fresh
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 10_000)
+    return () => clearInterval(id)
+  }, [])
 
   return (
     <div style={{

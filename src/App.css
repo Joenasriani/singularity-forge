@@ -137,3 +137,11 @@ button {
   0%, 100% { box-shadow: 0 0 8px var(--pulse-color, #00f5d4); }
   50%       { box-shadow: 0 0 20px var(--pulse-color, #00f5d4); }
 }
+
+@keyframes dust-float {
+  0%   { transform: translateY(0) translateX(0); opacity: 0; }
+  10%  { opacity: 0.5; }
+  50%  { transform: translateY(-30px) translateX(var(--dust-drift, 0px)); opacity: 0.3; }
+  90%  { opacity: 0.1; }
+  100% { transform: translateY(-60px) translateX(calc(var(--dust-drift, 0px) * 1.5)); opacity: 0; }
+}

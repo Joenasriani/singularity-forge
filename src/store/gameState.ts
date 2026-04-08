@@ -32,6 +32,7 @@ type Action =
   | { type: 'SET_SILO_SCRAP_COLLECTED'; collected: boolean }
   | { type: 'ADJUST_ENERGY'; delta: number }
   | { type: 'ADJUST_HEAT'; delta: number }
+  | { type: 'ADJUST_SCRAP'; delta: number }
   | { type: 'SET_OBJECTIVE'; text: string }
 
 const initialState: GameState = {
@@ -75,7 +76,7 @@ function reducer(state: GameState, action: Action): GameState {
 
     case 'APPLY_DROP_CHOICE':
       if (action.choice === 'sprint') {
-        return { ...state, dropChoice: 'sprint', energy: clamp(state.energy - 15), scrap: state.scrap + 3 }
+        return { ...state, dropChoice: 'sprint', energy: clamp(state.energy - 15), heat: clamp(state.heat + 20), scrap: state.scrap + 3 }
       }
       return { ...state, dropChoice: 'crawl', energy: clamp(state.energy + 5) }
 
@@ -90,6 +91,9 @@ function reducer(state: GameState, action: Action): GameState {
 
     case 'ADJUST_HEAT':
       return { ...state, heat: clamp(state.heat + action.delta) }
+
+    case 'ADJUST_SCRAP':
+      return { ...state, scrap: Math.max(0, state.scrap + action.delta) }
 
     case 'SET_OBJECTIVE':
       return { ...state, objective: action.text }
@@ -109,6 +113,7 @@ interface GameContextValue {
   setSiloScrapCollected: (collected: boolean) => void
   adjustEnergy: (delta: number) => void
   adjustHeat: (delta: number) => void
+  adjustScrap: (delta: number) => void
   setObjective: (text: string) => void
 }
 
@@ -126,6 +131,7 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
     setSiloScrapCollected: (collected: boolean) => dispatch({ type: 'SET_SILO_SCRAP_COLLECTED', collected }),
     adjustEnergy: (delta: number) => dispatch({ type: 'ADJUST_ENERGY', delta }),
     adjustHeat: (delta: number) => dispatch({ type: 'ADJUST_HEAT', delta }),
+    adjustScrap: (delta: number) => dispatch({ type: 'ADJUST_SCRAP', delta }),
     setObjective: (text: string) => dispatch({ type: 'SET_OBJECTIVE', text }),
   }), [])
 

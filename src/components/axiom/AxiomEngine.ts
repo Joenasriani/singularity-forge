@@ -35,6 +35,21 @@ const POOLS = {
     'Hatch cleared. Energy spent. What\'s on the other side better be worth it.',
     'Access granted. The Silo opens when you push. Remember that.',
   ],
+  salvage_collected: [
+    'Scrap in hand. Resource management is the first competency. You\'re building it.',
+    'Five units. Not much. Enough to matter. Keep looking.',
+    'Good. Now you\'re thinking like a salvager. What else can this room give you?',
+  ],
+  heat_high: [
+    'Thermal load is rising. Systems under heat degrade quietly before they fail loudly.',
+    'You\'re running hot. That\'s not automatically a problem — but watch it.',
+    'Heat builds faster than it dissipates. You know this now.',
+  ],
+  silo_complete: [
+    'Sector 01 cleared. The Weave lies ahead. What you\'ve learned here will cost you nothing — but only if you remember it.',
+    'Both objectives resolved. You survived by thinking, not just acting. That\'s the pattern.',
+    'First sector complete. The Silo tested resource management and problem-solving. You passed. Barely counts.',
+  ],
 }
 
 export function evaluateAxiom(state: GameState, event: string): string | null {
@@ -59,6 +74,18 @@ export function evaluateAxiom(state: GameState, event: string): string | null {
 
     case 'hatch_open':
       return pick(POOLS.hatch_open)
+
+    case 'salvage_collected':
+      return pick(POOLS.salvage_collected)
+
+    case 'heat_high':
+      if (state.heat >= 75) {
+        return pick(POOLS.heat_high)
+      }
+      return null
+
+    case 'silo_complete':
+      return pick(POOLS.silo_complete)
 
     default:
       return null

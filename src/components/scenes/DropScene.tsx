@@ -13,7 +13,7 @@ const BOOT_MESSAGES = [
 export default function DropScene() {
   const { state, setScene, applyDropChoice, addAxiomMessage, addChronicleEvent, setObjective } = useGameState()
   const [visibleMessages, setVisibleMessages] = useState<number>(0)
-  const [countdown, setCountdown] = useState<number>(45)
+  const [countdown, setCountdown] = useState<number>(60)
   const [showChoices, setShowChoices] = useState<boolean>(false)
   const [chosen, setChosen] = useState<boolean>(false)
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)

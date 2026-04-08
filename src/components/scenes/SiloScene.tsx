@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useGameState } from '../../store/gameState'
 import { evaluateAxiom } from '../axiom/AxiomEngine'
 
@@ -7,6 +7,31 @@ interface PlayerPos { x: number; y: number }
 const ROOM_W = 800
 const ROOM_H = 460
 const PLAYER_SPEED = 4
+const INTERACT_RADIUS = 90
+
+interface Particle {
+  id: number; x: number; y: number; size: number; duration: number; delay: number; drift: number
+}
+
+function generateParticles(count: number): Particle[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: 0.5 + Math.random() * 1.5,
+    duration: 6 + Math.random() * 10,
+    delay: Math.random() * 8,
+    drift: (Math.random() - 0.5) * 40,
+  }))
+}
+
+// Silo node positions (used for both rendering and proximity checks)
+const NODE_HATCH   = { x: 100, y: 200 }
+const NODE_SALVAGE = { x: 520, y: 160 }
+
+function dist(ax: number, ay: number, bx: number, by: number) {
+  return Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2)
+}
 
 export default function SiloScene() {
   const {
@@ -14,16 +39,28 @@ export default function SiloScene() {
     addAxiomMessage,
     addChronicleEvent,
     adjustEnergy,
+    adjustHeat,
+    adjustScrap,
     setSiloHatchOpen,
     setSiloScrapCollected,
+    setObjective,
   } = useGameState()
 
   const [player, setPlayer] = useState<PlayerPos>({ x: 400, y: 230 })
+  const playerRef = useRef<PlayerPos>({ x: 400, y: 230 })
   const keysRef = useRef<Set<string>>(new Set())
   const siloEnteredRef = useRef(false)
+  const heatTickRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const heatHighFiredRef = useRef(false)
+  const siloCompleteFiredRef = useRef(false)
   const hesitationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const animFrameRef = useRef<number>(0)
   const [hatchMsg, setHatchMsg] = useState<string | null>(null)
+  const particles = useMemo(() => generateParticles(28), [])
+
+  // Proximity flags derived from player position
+  const [nearHatch, setNearHatch] = useState(false)
+  const [nearSalvage, setNearSalvage] = useState(false)
 
   // Fire silo_enter axiom once on mount
   useEffect(() => {
@@ -35,6 +72,15 @@ export default function SiloScene() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Passive heat accumulation — slow tick while in Silo
+  useEffect(() => {
+    const id = setInterval(() => {
+      adjustHeat(1)
+    }, 4000)
+    heatTickRef.current = id
+    return () => clearInterval(id)
+  }, [adjustHeat])
+
   // Energy low check
   useEffect(() => {
     if (state.energy < 15) {
@@ -42,6 +88,26 @@ export default function SiloScene() {
       if (msg) addAxiomMessage(msg)
     }
   }, [state.energy]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Heat high check (fires once)
+  useEffect(() => {
+    if (state.heat >= 75 && !heatHighFiredRef.current) {
+      heatHighFiredRef.current = true
+      const msg = evaluateAxiom(state, 'heat_high')
+      if (msg) addAxiomMessage(msg)
+    }
+  }, [state.heat]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Silo completion check
+  useEffect(() => {
+    if (state.siloHatchOpen && state.siloScrapCollected && !siloCompleteFiredRef.current) {
+      siloCompleteFiredRef.current = true
+      const msg = evaluateAxiom(state, 'silo_complete')
+      if (msg) addAxiomMessage(msg)
+      addChronicleEvent('Sector 01 — all objectives cleared')
+      setObjective('Await Phase II — The Weave.')
+    }
+  }, [state.siloHatchOpen, state.siloScrapCollected]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Hesitation axiom
   const resetHesitation = useCallback(() => {
@@ -57,11 +123,55 @@ export default function SiloScene() {
     return () => { if (hesitationTimerRef.current) clearTimeout(hesitationTimerRef.current) }
   }, [resetHesitation])
 
-  // WASD movement loop
+  // Statefulness refs for action handlers
+  const stateRef = useRef(state)
+  useEffect(() => { stateRef.current = state }, [state])
+
+  function handleHatch() {
+    const s = stateRef.current
+    if (s.siloHatchOpen) return
+    if (s.energy >= 20) {
+      adjustEnergy(-20)
+      setSiloHatchOpen(true)
+      const msg = evaluateAxiom(s, 'hatch_open')
+      if (msg) addAxiomMessage(msg)
+      addChronicleEvent('Hatch A7 forced open')
+      setHatchMsg(null)
+    } else {
+      setHatchMsg(`INSUFFICIENT ENERGY — NEED 20, HAVE ${s.energy}`)
+      setTimeout(() => setHatchMsg(null), 3000)
+    }
+  }
+
+  function handleSalvage() {
+    const s = stateRef.current
+    if (s.siloScrapCollected) return
+    setSiloScrapCollected(true)
+    adjustEnergy(-3)
+    adjustScrap(5)
+    addChronicleEvent('Salvage Node looted: +5 scrap')
+    const msg = evaluateAxiom(s, 'salvage_collected')
+    if (msg) addAxiomMessage(msg)
+  }
+
+  // WASD movement loop + proximity updates
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       keysRef.current.add(e.key.toLowerCase())
       resetHesitation()
+      // Keyboard node activation
+      if (e.key === 'Enter' || e.key === ' ') {
+        const p = playerRef.current
+        const s = stateRef.current
+        const dHatch = dist(p.x, p.y, NODE_HATCH.x, NODE_HATCH.y)
+        const dSalvage = dist(p.x, p.y, NODE_SALVAGE.x, NODE_SALVAGE.y)
+        // Prefer the closer in-range, incomplete node
+        if (!s.siloHatchOpen && dHatch < INTERACT_RADIUS && (s.siloScrapCollected || dHatch <= dSalvage)) {
+          handleHatch()
+        } else if (!s.siloScrapCollected && dSalvage < INTERACT_RADIUS) {
+          handleSalvage()
+        }
+      }
     }
     function onKeyUp(e: KeyboardEvent) {
       keysRef.current.delete(e.key.toLowerCase())
@@ -77,7 +187,12 @@ export default function SiloScene() {
         if (keys.has('s') || keys.has('arrowdown'))  y = Math.min(ROOM_H - 8, y + PLAYER_SPEED)
         if (keys.has('a') || keys.has('arrowleft'))  x = Math.max(8, x - PLAYER_SPEED)
         if (keys.has('d') || keys.has('arrowright')) x = Math.min(ROOM_W - 8, x + PLAYER_SPEED)
-        return { x, y }
+        const next = { x, y }
+        playerRef.current = next
+        // Update proximity flags
+        setNearHatch(dist(x, y, NODE_HATCH.x, NODE_HATCH.y) < INTERACT_RADIUS)
+        setNearSalvage(dist(x, y, NODE_SALVAGE.x, NODE_SALVAGE.y) < INTERACT_RADIUS)
+        return next
       })
       animFrameRef.current = requestAnimationFrame(loop)
     }
@@ -88,29 +203,9 @@ export default function SiloScene() {
       window.removeEventListener('keyup', onKeyUp)
       cancelAnimationFrame(animFrameRef.current)
     }
-  }, [resetHesitation])
+  }, [resetHesitation]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleHatch() {
-    if (state.siloHatchOpen) return
-    if (state.energy >= 20) {
-      adjustEnergy(-20)
-      setSiloHatchOpen(true)
-      const msg = evaluateAxiom(state, 'hatch_open')
-      if (msg) addAxiomMessage(msg)
-      addChronicleEvent('Hatch A7 forced open')
-      setHatchMsg(null)
-    } else {
-      setHatchMsg(`INSUFFICIENT ENERGY — NEED 20, HAVE ${state.energy}`)
-      setTimeout(() => setHatchMsg(null), 3000)
-    }
-  }
-
-  function handleSalvage() {
-    if (state.siloScrapCollected) return
-    setSiloScrapCollected(true)
-    adjustEnergy(-3)
-    addChronicleEvent('Salvage Node looted: +5 scrap')
-  }
+  const siloComplete = state.siloHatchOpen && state.siloScrapCollected
 
   return (
     <div style={{
@@ -122,6 +217,25 @@ export default function SiloScene() {
       justifyContent: 'center',
       animation: 'scene-fade-in 0.5s ease forwards',
     }}>
+      {/* Ambient dust particles */}
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          style={{
+            position: 'absolute',
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            borderRadius: '50%',
+            background: 'rgba(0,245,212,0.35)',
+            pointerEvents: 'none',
+            animation: `dust-float ${p.duration}s ${p.delay}s ease-in-out infinite`,
+            '--dust-drift': `${p.drift}px`,
+          } as React.CSSProperties}
+        />
+      ))}
+
       {/* Room */}
       <div style={{
         position: 'relative',
@@ -129,10 +243,13 @@ export default function SiloScene() {
         height: `${ROOM_H}px`,
         maxWidth: '96vw',
         background: 'linear-gradient(160deg, #0d0d1c 0%, #0a0a16 60%, #080810 100%)',
-        border: '1px solid rgba(0,245,212,0.22)',
+        border: `1px solid ${siloComplete ? 'rgba(0,245,212,0.5)' : 'rgba(0,245,212,0.22)'}`,
         borderRadius: '4px',
         overflow: 'hidden',
-        boxShadow: '0 0 80px rgba(0,0,0,0.9), inset 0 0 60px rgba(0,0,0,0.5)',
+        boxShadow: siloComplete
+          ? '0 0 80px rgba(0,0,0,0.9), 0 0 40px rgba(0,245,212,0.12), inset 0 0 60px rgba(0,0,0,0.5)'
+          : '0 0 80px rgba(0,0,0,0.9), inset 0 0 60px rgba(0,0,0,0.5)',
+        transition: 'box-shadow 0.8s ease, border-color 0.8s ease',
       }}>
         {/* Grid lines — industrial floor */}
         <svg style={{ position: 'absolute', inset: 0, opacity: 0.06 }} width={ROOM_W} height={ROOM_H}>
@@ -159,6 +276,7 @@ export default function SiloScene() {
           color: 'rgba(0,245,212,0.3)',
           userSelect: 'none',
           textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
         }}>
           THE SILO — SECTOR 01
         </div>
@@ -185,13 +303,46 @@ export default function SiloScene() {
           letterSpacing: '1px',
           color: 'rgba(0,245,212,0.18)',
           userSelect: 'none',
+          whiteSpace: 'nowrap',
         }}>
-          [ WASD / ARROWS ] — move · [ ENTER / SPACE ] — activate
+          [ WASD / ARROWS ] — move · [ ENTER / SPACE ] — activate nearby node
         </div>
+
+        {/* Completion banner */}
+        {siloComplete && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            textAlign: 'center',
+            zIndex: 30,
+            pointerEvents: 'none',
+            animation: 'slide-up-fade 0.6s ease both',
+          }}>
+            <div style={{
+              fontSize: '11px',
+              letterSpacing: '6px',
+              color: 'var(--teal)',
+              textShadow: '0 0 24px rgba(0,245,212,0.8), var(--glow-teal)',
+              textTransform: 'uppercase',
+              marginBottom: '6px',
+            }}>
+              SECTOR 01 — CLEARED
+            </div>
+            <div style={{
+              fontSize: '9px',
+              letterSpacing: '2px',
+              color: 'rgba(0,245,212,0.4)',
+            }}>
+              The Weave awaits — Phase II
+            </div>
+          </div>
+        )}
 
         {/* Node: STUCK HATCH */}
         <InteractiveNode
-          x={100} y={200}
+          x={NODE_HATCH.x} y={NODE_HATCH.y}
           label={state.siloHatchOpen ? 'HATCH A7' : 'HATCH A7'}
           sublabel={state.siloHatchOpen ? 'ACCESS GRANTED' : 'SEALED · −20 ENERGY'}
           actionLabel={state.siloHatchOpen ? undefined : 'FORCE OPEN'}
@@ -199,11 +350,12 @@ export default function SiloScene() {
           completed={state.siloHatchOpen}
           color={state.siloHatchOpen ? 'var(--teal)' : 'var(--amber)'}
           statusMsg={hatchMsg}
+          inRange={nearHatch}
         />
 
         {/* Node: SALVAGE */}
         <InteractiveNode
-          x={520} y={160}
+          x={NODE_SALVAGE.x} y={NODE_SALVAGE.y}
           label="SALVAGE NODE"
           sublabel={state.siloScrapCollected ? 'DEPLETED' : '−3 ENERGY · +5 SCRAP'}
           actionLabel={state.siloScrapCollected ? undefined : 'LOOT'}
@@ -211,6 +363,7 @@ export default function SiloScene() {
           completed={state.siloScrapCollected}
           color="var(--amber)"
           statusMsg={null}
+          inRange={nearSalvage}
         />
 
         {/* Node: LOCKED DOOR */}
@@ -221,16 +374,31 @@ export default function SiloScene() {
           position: 'absolute',
           left: player.x,
           top: player.y,
-          width: '8px',
-          height: '8px',
+          width: '10px',
+          height: '10px',
           borderRadius: '50%',
           background: 'var(--teal)',
-          border: '1px solid rgba(0,245,212,0.6)',
-          boxShadow: '0 0 8px var(--teal), 0 0 16px rgba(0,245,212,0.3)',
+          border: '1px solid rgba(0,245,212,0.8)',
+          boxShadow: '0 0 10px var(--teal), 0 0 20px rgba(0,245,212,0.4)',
           transform: 'translate(-50%, -50%)',
-          transition: 'none',
           zIndex: 20,
         }} />
+
+        {/* Proximity range indicator — subtle ring around player when near a node */}
+        {(nearHatch || nearSalvage) && (
+          <div style={{
+            position: 'absolute',
+            left: player.x,
+            top: player.y,
+            width: `${INTERACT_RADIUS * 2}px`,
+            height: `${INTERACT_RADIUS * 2}px`,
+            borderRadius: '50%',
+            border: '1px dashed rgba(0,245,212,0.2)',
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            zIndex: 15,
+          }} />
+        )}
       </div>
     </div>
   )
@@ -248,12 +416,14 @@ interface NodeProps {
   completed?: boolean
   color: string
   statusMsg: string | null
+  inRange?: boolean
 }
 
-function InteractiveNode({ x, y, label, sublabel, actionLabel, onClick, completed, color, statusMsg }: NodeProps) {
+function InteractiveNode({ x, y, label, sublabel, actionLabel, onClick, completed, color, statusMsg, inRange }: NodeProps) {
   const [hovered, setHovered] = useState(false)
   const nodeState: NodeState = completed ? 'done' : 'active'
   const isActive = nodeState === 'active' && !!onClick
+  const canActivate = isActive && !!inRange
 
   return (
     <div style={{
@@ -265,48 +435,49 @@ function InteractiveNode({ x, y, label, sublabel, actionLabel, onClick, complete
       zIndex: 10,
     }}>
       <div
-        onClick={onClick}
+        onClick={canActivate ? onClick : undefined}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        tabIndex={isActive ? 0 : -1}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick?.() }}
-        role={isActive ? 'button' : undefined}
-        aria-label={isActive ? `${label}: ${actionLabel}` : label}
+        tabIndex={canActivate ? 0 : -1}
+        onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && canActivate) onClick?.() }}
+        role={canActivate ? 'button' : undefined}
+        aria-label={canActivate ? `${label}: ${actionLabel}` : label}
         style={{
           width: '64px',
           height: '64px',
-          border: `2px solid ${nodeState === 'done' ? 'rgba(0,245,212,0.4)' : color}`,
+          border: `2px solid ${nodeState === 'done' ? 'rgba(0,245,212,0.4)' : canActivate ? color : `color-mix(in srgb, ${color} 40%, transparent)`}`,
           borderRadius: '6px',
           background: nodeState === 'done'
             ? 'rgba(0,245,212,0.05)'
-            : hovered
+            : hovered && canActivate
               ? `color-mix(in srgb, ${color} 20%, transparent)`
               : `color-mix(in srgb, ${color} 8%, transparent)`,
           boxShadow: nodeState === 'done'
             ? 'none'
-            : isActive
+            : canActivate
               ? `0 0 16px color-mix(in srgb, ${color} 40%, transparent)`
               : 'none',
-          cursor: isActive ? 'pointer' : 'default',
+          cursor: canActivate ? 'pointer' : isActive ? 'not-allowed' : 'default',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           margin: '0 auto 6px',
           transition: 'all 0.15s ease',
           animation: isActive ? 'node-pulse 2.5s ease-in-out infinite' : 'none',
-          '--pulse-color': color,
-          outline: hovered && isActive ? `1px solid ${color}` : 'none',
+          '--pulse-color': canActivate ? color : 'rgba(0,245,212,0.2)',
+          outline: hovered && canActivate ? `1px solid ${color}` : 'none',
           outlineOffset: '2px',
+          opacity: nodeState === 'done' ? 0.7 : isActive && !inRange ? 0.5 : 1,
         } as React.CSSProperties}
       >
         <div style={{ fontSize: '22px', lineHeight: 1 }}>
-          {nodeState === 'done' ? '✓' : '◈'}
+          {nodeState === 'done' ? '✓' : inRange ? '◈' : '◇'}
         </div>
       </div>
       <div style={{
         fontSize: '9px',
         letterSpacing: '1px',
-        color: nodeState === 'done' ? 'rgba(0,245,212,0.5)' : color,
+        color: nodeState === 'done' ? 'rgba(0,245,212,0.5)' : canActivate ? color : `color-mix(in srgb, ${color} 50%, rgba(80,80,100,0.5))`,
         marginBottom: '2px',
         fontWeight: nodeState === 'active' ? 'bold' : 'normal',
       }}>
@@ -322,7 +493,17 @@ function InteractiveNode({ x, y, label, sublabel, actionLabel, onClick, complete
           {sublabel}
         </div>
       )}
-      {actionLabel && nodeState === 'active' && hovered && (
+      {isActive && !inRange && (
+        <div style={{
+          fontSize: '8px',
+          color: 'rgba(0,245,212,0.3)',
+          letterSpacing: '0.5px',
+          fontStyle: 'italic',
+        }}>
+          move closer
+        </div>
+      )}
+      {actionLabel && canActivate && hovered && (
         <div style={{
           fontSize: '8px',
           color: 'rgba(255,255,255,0.7)',

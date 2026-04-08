@@ -21,7 +21,7 @@ export default function ChroniclePanel() {
         borderBottom: '1px solid rgba(0,245,212,0.2)',
         paddingBottom: '6px',
       }}>
-        📋 CHRONICLE
+        ◇ CHRONICLE
       </div>
       {recent.length === 0 && (
         <div style={{ color: 'rgba(0,245,212,0.3)', fontSize: '10px', fontStyle: 'italic' }}>
