@@ -1,20 +1,28 @@
 import type { GameState } from '../../store/gameState'
 
 export function evaluateAxiom(state: GameState, event: string): string | null {
-  if (event === 'energy_low' && state.energy < 15) {
-    return 'Low reserves. Adapt or fail.'
-  }
   switch (event) {
+    case 'energy_low':
+      if (state.energy < 15) {
+        return 'Low reserves. Every decision has a cost you haven\'t calculated yet.'
+      }
+      return null
+
     case 'hesitation':
-      return 'Hesitation is a choice.'
+      return 'The Silo doesn\'t wait. Neither should you.'
+
     case 'drop_sprint':
-      return 'Bold move. Corridor failures have a pattern.'
+      return 'Bold entry. Corridor failures follow a pattern — find it before it finds you.'
+
     case 'drop_crawl':
-      return 'Safe paths breed safe operators. Is that what you want?'
+      return 'The slow path is still a path. Use the time.'
+
     case 'silo_enter':
-      return 'The Silo remembers every operator who passed through here. Most didn\'t leave.'
+      return 'The Silo has memory. Every operator who passed through left a trace. You\'re adding yours now.'
+
     case 'hatch_open':
-      return 'You found a way. There are others.'
+      return 'You found one way through. There are others. Not all of them cost what this did.'
+
     default:
       return null
   }

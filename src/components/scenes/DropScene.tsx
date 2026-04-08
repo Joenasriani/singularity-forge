@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useGameState } from '../../store/gameState'
 import { evaluateAxiom } from '../axiom/AxiomEngine'
 
@@ -18,6 +18,27 @@ export default function DropScene() {
   const [chosen, setChosen] = useState<boolean>(false)
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const bootRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Refs so interval callbacks can read latest values without re-subscribing
+  const chosenRef = useRef(false)
+  const handleChoiceRef = useRef<(choice: 'sprint' | 'crawl') => void>(() => {})
+
+  const handleChoice = useCallback((choice: 'sprint' | 'crawl') => {
+    if (chosenRef.current) return
+    chosenRef.current = true
+    setChosen(true)
+    const axiomEvent = choice === 'sprint' ? 'drop_sprint' : 'drop_crawl'
+    const axiomText = evaluateAxiom(state, axiomEvent)
+    applyDropChoice(choice)
+    if (axiomText) addAxiomMessage(axiomText)
+    addChronicleEvent(`Chose: ${choice === 'sprint' ? 'Sprint — Corridor 7' : 'Crawlspace Access'}`)
+    setTimeout(() => {
+      setScene('silo')
+      setObjective('Explore The Silo.')
+    }, 2000)
+  }, [state, applyDropChoice, addAxiomMessage, addChronicleEvent, setScene, setObjective])
+
+  // Keep ref in sync so interval callback can call latest handleChoice
+  handleChoiceRef.current = handleChoice
 
   // Boot message sequence
   useEffect(() => {
@@ -39,12 +60,14 @@ export default function DropScene() {
     return () => clearTimeout(t)
   }, [])
 
-  // Countdown
+  // Countdown — auto-selects crawl via ref callback when it reaches 0
   useEffect(() => {
     countdownRef.current = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
           clearInterval(countdownRef.current!)
+          // Auto-select via ref so no setState-in-effect
+          setTimeout(() => handleChoiceRef.current('crawl'), 0)
           return 0
         }
         return c - 1
@@ -53,41 +76,18 @@ export default function DropScene() {
     return () => { if (countdownRef.current) clearInterval(countdownRef.current) }
   }, [])
 
-  // Auto-choose crawl when countdown hits 0
-  useEffect(() => {
-    if (countdown === 0 && !chosen) {
-      handleChoice('crawl')
-    }
-  }, [countdown, chosen]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  function handleChoice(choice: 'sprint' | 'crawl') {
-    if (chosen) return
-    setChosen(true)
-
-    const axiomEvent = choice === 'sprint' ? 'drop_sprint' : 'drop_crawl'
-    const axiomText = evaluateAxiom(state, axiomEvent)
-    applyDropChoice(choice)
-    if (axiomText) addAxiomMessage(axiomText)
-    addChronicleEvent(`Chose: ${choice === 'sprint' ? 'Sprint — Corridor 7' : 'Crawlspace Access'}`)
-
-    setTimeout(() => {
-      setScene('silo')
-      setObjective('Explore The Silo.')
-    }, 2000)
-  }
-
   const countdownColor = countdown <= 10 ? 'var(--danger)' : countdown <= 20 ? 'var(--amber)' : 'var(--teal)'
 
   return (
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: '#070710',
+      background: '#060610',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      animation: 'flicker 8s ease-in-out infinite, alarm-border 1.2s ease-in-out infinite',
+      animation: 'scene-fade-in 0.4s ease forwards, flicker 8s ease-in-out infinite, alarm-border 1.2s ease-in-out infinite',
       overflow: 'hidden',
     }}>
       {/* Scanlines */}
@@ -104,21 +104,21 @@ export default function DropScene() {
         position: 'absolute',
         inset: 0,
         pointerEvents: 'none',
-        background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%)',
+        background: 'radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.75) 100%)',
         zIndex: 4,
       }} />
 
       {/* Countdown */}
       <div style={{
         position: 'absolute',
-        top: '24px',
+        top: '28px',
         left: '50%',
         transform: 'translateX(-50%)',
-        fontSize: '36px',
+        fontSize: 'clamp(28px, 4vw, 40px)',
         fontWeight: 'bold',
         color: countdownColor,
-        textShadow: `0 0 20px ${countdownColor}`,
-        letterSpacing: '4px',
+        textShadow: `0 0 24px ${countdownColor}`,
+        letterSpacing: '6px',
         zIndex: 10,
         fontFamily: 'monospace',
         animation: countdown <= 10 ? 'pulse-glow 0.5s ease-in-out infinite' : 'none',
@@ -129,18 +129,19 @@ export default function DropScene() {
       {/* Boot messages */}
       <div style={{
         zIndex: 10,
-        width: '560px',
+        width: '580px',
         maxWidth: '90vw',
-        marginBottom: '32px',
+        marginBottom: '36px',
+        animation: 'slide-up-fade 0.5s ease both',
       }}>
         {BOOT_MESSAGES.slice(0, visibleMessages).map((msg, i) => (
           <div key={i} style={{
             fontSize: i === visibleMessages - 1 ? '14px' : '12px',
-            color: i === visibleMessages - 1 ? '#fff' : 'rgba(255,255,255,0.45)',
-            marginBottom: '6px',
+            color: i === visibleMessages - 1 ? '#fff' : 'rgba(255,255,255,0.35)',
+            marginBottom: '8px',
             letterSpacing: '2px',
-            textShadow: i === visibleMessages - 1 ? '0 0 10px rgba(255,34,68,0.6)' : 'none',
-            transition: 'all 0.3s ease',
+            textShadow: i === visibleMessages - 1 ? '0 0 12px rgba(255,34,68,0.7)' : 'none',
+            transition: 'color 0.4s ease, font-size 0.3s ease',
           }}>
             &gt; {msg}
             {i === visibleMessages - 1 && (
@@ -155,37 +156,42 @@ export default function DropScene() {
         <div style={{
           zIndex: 10,
           display: 'flex',
-          gap: '20px',
-          width: '560px',
+          gap: '16px',
+          width: '580px',
           maxWidth: '90vw',
+          animation: 'slide-up-fade 0.4s ease both',
         }}>
           <button
             onClick={() => handleChoice('sprint')}
             style={{
               flex: 1,
-              padding: '16px',
-              background: 'rgba(255,34,68,0.1)',
-              border: '1px solid rgba(255,34,68,0.6)',
+              padding: '18px 16px',
+              background: 'rgba(255,34,68,0.08)',
+              border: '1px solid rgba(255,34,68,0.5)',
               borderRadius: '4px',
               color: '#fff',
               cursor: 'pointer',
               textAlign: 'left',
               transition: 'all 0.2s',
+              outline: 'none',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255,34,68,0.2)'
-              e.currentTarget.style.boxShadow = '0 0 16px rgba(255,34,68,0.4)'
+              e.currentTarget.style.background = 'rgba(255,34,68,0.18)'
+              e.currentTarget.style.boxShadow = '0 0 20px rgba(255,34,68,0.3)'
+              e.currentTarget.style.borderColor = 'rgba(255,34,68,0.8)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255,34,68,0.1)'
+              e.currentTarget.style.background = 'rgba(255,34,68,0.08)'
               e.currentTarget.style.boxShadow = 'none'
+              e.currentTarget.style.borderColor = 'rgba(255,34,68,0.5)'
             }}
           >
-            <div style={{ fontSize: '13px', fontWeight: 'bold', letterSpacing: '2px', color: 'var(--danger)', marginBottom: '6px' }}>
-              SPRINT — CORRIDOR 7
+            <div style={{ fontSize: '12px', fontWeight: 'bold', letterSpacing: '2px', color: 'var(--danger)', marginBottom: '8px' }}>
+              ⚡ SPRINT — CORRIDOR 7
             </div>
-            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', letterSpacing: '1px' }}>
-              Power cell at risk. Structural failure imminent.
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', letterSpacing: '1px', lineHeight: '1.5' }}>
+              Power cell at risk. Structural failure imminent.<br/>
+              <span style={{ color: 'rgba(255,183,0,0.6)' }}>+3 SCRAP · −15 ENERGY</span>
             </div>
           </button>
 
@@ -193,29 +199,33 @@ export default function DropScene() {
             onClick={() => handleChoice('crawl')}
             style={{
               flex: 1,
-              padding: '16px',
-              background: 'rgba(0,245,212,0.08)',
-              border: '1px solid rgba(0,245,212,0.4)',
+              padding: '18px 16px',
+              background: 'rgba(0,245,212,0.06)',
+              border: '1px solid rgba(0,245,212,0.35)',
               borderRadius: '4px',
               color: '#fff',
               cursor: 'pointer',
               textAlign: 'left',
               transition: 'all 0.2s',
+              outline: 'none',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(0,245,212,0.15)'
-              e.currentTarget.style.boxShadow = 'var(--glow-teal)'
+              e.currentTarget.style.background = 'rgba(0,245,212,0.12)'
+              e.currentTarget.style.boxShadow = '0 0 20px rgba(0,245,212,0.2)'
+              e.currentTarget.style.borderColor = 'rgba(0,245,212,0.7)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(0,245,212,0.08)'
+              e.currentTarget.style.background = 'rgba(0,245,212,0.06)'
               e.currentTarget.style.boxShadow = 'none'
+              e.currentTarget.style.borderColor = 'rgba(0,245,212,0.35)'
             }}
           >
-            <div style={{ fontSize: '13px', fontWeight: 'bold', letterSpacing: '2px', color: 'var(--teal)', marginBottom: '6px' }}>
-              CRAWLSPACE ACCESS
+            <div style={{ fontSize: '12px', fontWeight: 'bold', letterSpacing: '2px', color: 'var(--teal)', marginBottom: '8px' }}>
+              ◎ CRAWLSPACE ACCESS
             </div>
-            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', letterSpacing: '1px' }}>
-              Slower. Stable.
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', letterSpacing: '1px', lineHeight: '1.5' }}>
+              Slower. Stable. Lower exposure.<br/>
+              <span style={{ color: 'rgba(0,245,212,0.6)' }}>+5 ENERGY</span>
             </div>
           </button>
         </div>
@@ -225,13 +235,18 @@ export default function DropScene() {
       {chosen && (
         <div style={{
           zIndex: 10,
-          fontSize: '16px',
-          color: 'var(--teal)',
-          letterSpacing: '4px',
-          textShadow: 'var(--glow-teal)',
-          animation: 'pulse-glow 0.8s ease-in-out infinite',
+          textAlign: 'center',
+          animation: 'slide-up-fade 0.3s ease both',
         }}>
-          INITIALIZING...
+          <div style={{
+            fontSize: '14px',
+            color: 'var(--teal)',
+            letterSpacing: '5px',
+            textShadow: 'var(--glow-teal)',
+            animation: 'pulse-glow 0.8s ease-in-out infinite',
+          }}>
+            INITIALIZING SILO ACCESS...
+          </div>
         </div>
       )}
     </div>
