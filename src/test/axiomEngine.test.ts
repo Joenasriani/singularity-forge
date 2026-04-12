@@ -17,6 +17,11 @@ const baseState: GameState = {
   siloHatchOpen: false,
   siloScrapCollected: false,
   objective: 'Find your path.',
+  tasks: [],
+  notes: [],
+  pomodoro: { phase: 'idle', startedAt: null, pausedElapsed: 0, focusDuration: 1500, breakDuration: 300 },
+  stats: { sessionsStarted: 0, totalFocusMinutes: 0, tasksCompleted: 0, scrapEarned: 0 },
+  reducedMotion: false,
 }
 
 describe('AxiomEngine — evaluateAxiom', () => {
