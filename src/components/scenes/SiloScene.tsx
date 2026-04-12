@@ -7,6 +7,15 @@ interface PlayerPos { x: number; y: number }
 const ROOM_W = 800
 const ROOM_H = 460
 const PLAYER_SPEED = 4
+const INTERACT_RADIUS = 70
+
+// Node positions for proximity-based keyboard activation
+const NODE_HATCH = { x: 100, y: 200 }
+const NODE_SALVAGE = { x: 520, y: 160 }
+
+function dist(a: PlayerPos, b: { x: number; y: number }) {
+  return Math.hypot(a.x - b.x, a.y - b.y)
+}
 
 export default function SiloScene() {
   const {
@@ -14,6 +23,7 @@ export default function SiloScene() {
     addAxiomMessage,
     addChronicleEvent,
     adjustEnergy,
+    adjustScrap,
     setSiloHatchOpen,
     setSiloScrapCollected,
   } = useGameState()
@@ -24,6 +34,10 @@ export default function SiloScene() {
   const hesitationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const animFrameRef = useRef<number>(0)
   const [hatchMsg, setHatchMsg] = useState<string | null>(null)
+
+  // Derived proximity flags
+  const nearHatch = dist(player, NODE_HATCH) <= INTERACT_RADIUS
+  const nearSalvage = dist(player, NODE_SALVAGE) <= INTERACT_RADIUS
 
   // Fire silo_enter axiom once on mount
   useEffect(() => {
@@ -57,11 +71,19 @@ export default function SiloScene() {
     return () => { if (hesitationTimerRef.current) clearTimeout(hesitationTimerRef.current) }
   }, [resetHesitation])
 
-  // WASD movement loop
+  // WASD movement loop + keyboard activation
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      keysRef.current.add(e.key.toLowerCase())
+      const key = e.key.toLowerCase()
+      keysRef.current.add(key)
       resetHesitation()
+      // Activate nearby node with Enter or Space
+      if (key === 'enter' || key === ' ') {
+        e.preventDefault()
+        // We can't read React state in this closure, so we dispatch a custom event
+        // instead, handled by the node via its own keydown listener
+        window.dispatchEvent(new CustomEvent('silo-activate'))
+      }
     }
     function onKeyUp(e: KeyboardEvent) {
       keysRef.current.delete(e.key.toLowerCase())
@@ -90,6 +112,18 @@ export default function SiloScene() {
     }
   }, [resetHesitation])
 
+  // Global silo-activate: trigger nearby node action
+  function activateNearby() {
+    if (nearHatch && !state.siloHatchOpen) handleHatch()
+    else if (nearSalvage && !state.siloScrapCollected) handleSalvage()
+  }
+
+  useEffect(() => {
+    window.addEventListener('silo-activate', activateNearby)
+    return () => window.removeEventListener('silo-activate', activateNearby)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nearHatch, nearSalvage, state.siloHatchOpen, state.siloScrapCollected, state.energy])
+
   function handleHatch() {
     if (state.siloHatchOpen) return
     if (state.energy >= 20) {
@@ -109,8 +143,25 @@ export default function SiloScene() {
     if (state.siloScrapCollected) return
     setSiloScrapCollected(true)
     adjustEnergy(-3)
+    adjustScrap(5)
     addChronicleEvent('Salvage Node looted: +5 scrap')
   }
+
+  // Touch D-pad: inject virtual key presses
+  function dpadPress(dir: string) {
+    keysRef.current.add(dir)
+    resetHesitation()
+  }
+  function dpadRelease(dir: string) {
+    keysRef.current.delete(dir)
+  }
+
+  // Proximity hint label for nearest active node
+  const nearbyHint = !state.siloHatchOpen && nearHatch
+    ? 'HATCH A7 — ENTER/SPACE to activate'
+    : !state.siloScrapCollected && nearSalvage
+      ? 'SALVAGE NODE — ENTER/SPACE to activate'
+      : null
 
   return (
     <div style={{
@@ -118,6 +169,7 @@ export default function SiloScene() {
       inset: 0,
       background: 'radial-gradient(ellipse at 50% 40%, #0c0c1e 0%, #07070f 100%)',
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       animation: 'scene-fade-in 0.5s ease forwards',
@@ -175,7 +227,7 @@ export default function SiloScene() {
           SCRAP: {state.scrap}u
         </div>
 
-        {/* WASD hint */}
+        {/* WASD hint / proximity prompt */}
         <div style={{
           position: 'absolute',
           bottom: '10px',
@@ -183,10 +235,13 @@ export default function SiloScene() {
           transform: 'translateX(-50%)',
           fontSize: '9px',
           letterSpacing: '1px',
-          color: 'rgba(0,245,212,0.18)',
+          color: nearbyHint ? 'var(--teal)' : 'rgba(0,245,212,0.18)',
           userSelect: 'none',
+          whiteSpace: 'nowrap',
+          textShadow: nearbyHint ? 'var(--glow-teal)' : 'none',
+          transition: 'color 0.3s',
         }}>
-          [ WASD / ARROWS ] — move · [ ENTER / SPACE ] — activate
+          {nearbyHint ?? '[ WASD / ARROWS ] — move · [ ENTER / SPACE ] — activate'}
         </div>
 
         {/* Node: STUCK HATCH */}
@@ -232,6 +287,13 @@ export default function SiloScene() {
           zIndex: 20,
         }} />
       </div>
+
+      {/* Touch D-pad for mobile */}
+      <TouchDpad
+        onPress={dpadPress}
+        onRelease={dpadRelease}
+        onActivate={activateNearby}
+      />
     </div>
   )
 }
@@ -391,6 +453,73 @@ function LockedNode({ x, y, label }: { x: number; y: number; label: string }) {
       }}>
         Coming Soon
       </div>
+    </div>
+  )
+}
+
+interface TouchDpadProps {
+  onPress: (dir: string) => void
+  onRelease: (dir: string) => void
+  onActivate: () => void
+}
+
+function TouchDpad({ onPress, onRelease, onActivate }: TouchDpadProps) {
+  const buttonStyle = (_label: string): React.CSSProperties => ({
+    width: '48px',
+    height: '48px',
+    background: 'rgba(0,245,212,0.08)',
+    border: '1px solid rgba(0,245,212,0.25)',
+    borderRadius: '6px',
+    color: 'var(--teal)',
+    fontSize: '18px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    touchAction: 'none',
+    cursor: 'pointer',
+  })
+
+  function makeHandlers(dir: string) {
+    return {
+      onTouchStart: (e: React.TouchEvent) => { e.preventDefault(); onPress(dir) },
+      onTouchEnd: (e: React.TouchEvent) => { e.preventDefault(); onRelease(dir) },
+      onMouseDown: () => onPress(dir),
+      onMouseUp: () => onRelease(dir),
+      onMouseLeave: () => onRelease(dir),
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: '24px',
+        right: '16px',
+        zIndex: 150,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '4px',
+        // Show on touch devices; hide on hover-capable devices (i.e., desktop)
+        // We use a CSS media query approach via a wrapper class
+      }}
+      className="touch-dpad"
+    >
+      <div {...makeHandlers('arrowup')} style={buttonStyle('↑')}>↑</div>
+      <div style={{ display: 'flex', gap: '4px' }}>
+        <div {...makeHandlers('arrowleft')} style={buttonStyle('←')}>←</div>
+        <div
+          onTouchStart={(e) => { e.preventDefault(); onActivate() }}
+          onClick={onActivate}
+          style={{ ...buttonStyle('◈'), fontSize: '14px', background: 'rgba(0,245,212,0.12)' }}
+        >
+          ◈
+        </div>
+        <div {...makeHandlers('arrowright')} style={buttonStyle('→')}>→</div>
+      </div>
+      <div {...makeHandlers('arrowdown')} style={buttonStyle('↓')}>↓</div>
     </div>
   )
 }

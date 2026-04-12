@@ -137,3 +137,21 @@ button {
   0%, 100% { box-shadow: 0 0 8px var(--pulse-color, #00f5d4); }
   50%       { box-shadow: 0 0 20px var(--pulse-color, #00f5d4); }
 }
+
+/* Touch D-pad: only show on devices that don't support hover (touch-primary) */
+.touch-dpad {
+  display: none;
+}
+@media (hover: none) and (pointer: coarse) {
+  .touch-dpad {
+    display: flex;
+  }
+}
+
+/* HUD panels: reduce width on narrow viewports */
+@media (max-width: 640px) {
+  .hud-panel {
+    width: auto !important;
+    min-width: 0 !important;
+  }
+}
