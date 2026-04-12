@@ -1,4 +1,27 @@
-import React, { createContext, useContext, useMemo, useReducer } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useReducer } from 'react'
+
+const STORAGE_KEY = 'sf-game-state-v1'
+
+function loadPersistedState(): GameState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as GameState
+    // Validate essential fields exist before trusting persisted data
+    if (typeof parsed.scene !== 'string') return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function persistState(state: GameState) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  } catch {
+    // storage might be blocked (private browsing, quota)
+  }
+}
 
 export type Scene = 'nexus' | 'drop' | 'silo'
 export type DropChoice = 'sprint' | 'crawl' | null
@@ -32,7 +55,9 @@ type Action =
   | { type: 'SET_SILO_SCRAP_COLLECTED'; collected: boolean }
   | { type: 'ADJUST_ENERGY'; delta: number }
   | { type: 'ADJUST_HEAT'; delta: number }
+  | { type: 'ADJUST_SCRAP'; delta: number }
   | { type: 'SET_OBJECTIVE'; text: string }
+  | { type: 'LOAD_STATE'; state: GameState }
 
 const initialState: GameState = {
   scene: 'nexus',
@@ -91,8 +116,14 @@ function reducer(state: GameState, action: Action): GameState {
     case 'ADJUST_HEAT':
       return { ...state, heat: clamp(state.heat + action.delta) }
 
+    case 'ADJUST_SCRAP':
+      return { ...state, scrap: Math.max(0, state.scrap + action.delta) }
+
     case 'SET_OBJECTIVE':
       return { ...state, objective: action.text }
+
+    case 'LOAD_STATE':
+      return { ...action.state }
 
     default:
       return state
@@ -109,13 +140,20 @@ interface GameContextValue {
   setSiloScrapCollected: (collected: boolean) => void
   adjustEnergy: (delta: number) => void
   adjustHeat: (delta: number) => void
+  adjustScrap: (delta: number) => void
   setObjective: (text: string) => void
+  loadState: (state: GameState) => void
 }
 
 const GameContext = createContext<GameContextValue | null>(null)
 
 export function GameStateProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState)
+  const [state, dispatch] = useReducer(reducer, initialState, () => loadPersistedState() ?? initialState)
+
+  // Persist on every state change
+  useEffect(() => {
+    persistState(state)
+  }, [state])
 
   const actions = useMemo(() => ({
     setScene: (scene: Scene) => dispatch({ type: 'SET_SCENE', scene }),
@@ -126,7 +164,9 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
     setSiloScrapCollected: (collected: boolean) => dispatch({ type: 'SET_SILO_SCRAP_COLLECTED', collected }),
     adjustEnergy: (delta: number) => dispatch({ type: 'ADJUST_ENERGY', delta }),
     adjustHeat: (delta: number) => dispatch({ type: 'ADJUST_HEAT', delta }),
+    adjustScrap: (delta: number) => dispatch({ type: 'ADJUST_SCRAP', delta }),
     setObjective: (text: string) => dispatch({ type: 'SET_OBJECTIVE', text }),
+    loadState: (state: GameState) => dispatch({ type: 'LOAD_STATE', state }),
   }), [])
 
   const value = useMemo<GameContextValue>(() => ({
