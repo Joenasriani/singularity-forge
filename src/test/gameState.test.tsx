@@ -161,6 +161,10 @@ describe('GameState — loadState', () => {
       axiomMessages: [], chronicleEvents: [],
       siloHatchOpen: true, siloScrapCollected: true,
       objective: 'Custom obj',
+      tasks: [], notes: [],
+      pomodoro: { phase: 'idle' as const, startedAt: null, pausedElapsed: 0, focusDuration: 1500, breakDuration: 300 },
+      stats: { sessionsStarted: 0, totalFocusMinutes: 0, tasksCompleted: 0, scrapEarned: 0 },
+      reducedMotion: false,
     }
     const { click, ctx } = wrap((c) => c.loadState(newState))
     await click()

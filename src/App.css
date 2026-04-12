@@ -138,7 +138,24 @@ button {
   50%       { box-shadow: 0 0 20px var(--pulse-color, #00f5d4); }
 }
 
-/* Touch D-pad: only show on devices that don't support hover (touch-primary) */
+/* ── Accessibility ── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus-visible outline for keyboard users */
+:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
 .touch-dpad {
   display: none;
 }
